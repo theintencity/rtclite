@@ -1,5 +1,7 @@
 # Light weight implementations of real-time communication protocols and applications in Python
 
+![rtclite](https://raw.githubusercontent.com/theintencity/rtclite/master/assets/logo-rtclite.png)
+
 This project aims to create an open source repository of light weight implementations 
 of real-time communication (RTC) protocols and applications.
 In a nutshell, it contains reference implementations, 
