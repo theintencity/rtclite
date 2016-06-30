@@ -23,15 +23,14 @@ This project is an effort to unify my Python-based projects related to SIP, RTP,
 into a single theme of real-time communication (RTC). In particular, the initial source code
 is borrowed after cleanup from these projects, without adding any significant new functionality:
 
-> [p2p-sip https://github.com/theintencity/p2p-sip]: SIP, P2P, XMPP and other related code.
-> [rtmplite https://github.com/theintencity/rtmplite]: RTMP, RTMFP and SIP-RTMP translation.
-> [restlite https://github.com/theintencity/restlite]: REST web APIs
+> [p2p-sip](https://github.com/theintencity/p2p-sip): SIP, P2P, XMPP and other related code.
+> [rtmplite](https://github.com/theintencity/rtmplite): RTMP, RTMFP and SIP-RTMP translation.
+> [restlite](https://github.com/theintencity/restlite): REST web APIs
 
 ## Motivation
 
 The primary motivation is described in my earlier blog article,
-[a proposal for reference implementation repositiory for RFCs
-http://blog.kundansingh.com/2011/06/proposal-for-reference-implementation.html].
+[a proposal for reference implementation repositiory for RFCs](http://blog.kundansingh.com/2011/06/proposal-for-reference-implementation.html).
 
 With growing number of emerging RTC standards, the trend of
 creating specifications without implementations, and consecutively the interoperability
@@ -45,7 +44,7 @@ the specification, (b) which part of the specification is relevant to the
 code fragment, and vice-versa, and (c) the implicit code documentation 
 borrowed from the text in the specification.
 
-[Browse annotated source code http://kundansingh.com/p/rtclite/index.html]
+[Browse annotated source code](http://kundansingh.com/p/rtclite/index.html)
 
 Furthermore, the project contains various applications built on top of these
 open standards and open source implementations to demonstrate real use cases, e.g.,
@@ -62,36 +61,36 @@ two parts in the source code -- the protocols and
 the applications.
 Following goals are met in the current implementations of the protocols.
 
-    * System Portability: apart from the Python standard library, the
-      project should not rely on other third-party libraries. If such third-
-      party libraries become necessary, consider including them in the
-      repository or provide clear instructions for such dependency.
-      The module should isolate such dependencies to smaller part if possible.
-      The project should therefore be portable to many interpreters and
-      runtime environments.
-    * Threading: threading vs event-driven programming style is decision that
-      best left to the application developer instead of forcing a particular
-      choice in the library. The project should not impose such decision in
-      reference implementation. If it is necessary to include such choice,
-      then it should provide reasonable set of alternatives pre-built in the
-      module.
-    * Concise and Precise Code: Python enables expressing ideas in code in
-      less number of lines. The programmer should further honor the Pythonic
-      programming style. Less number of lines means that one can write software
-      faster, and with less garbage (syntactic sugar), one can read and
-      understand the code easily. Moreover, testing and review efforts are less.
-      The resulting improvement in programmer's efficiency reflects in her
-      motivation to write more clean code.
-    * Testing: testing is an integral part of all code in this project. It
-      uses doctest whereever possible to integrate code with documentation and
-      testing. Alternatively, dedicated test and sample applications are
-      included for manual or automated testing. Generally, running a protocol module
-      on command line via Python interpreter should run its test cases and
-      report any errors.
-    * Logging: standard logging module is used at various log levels. The code
-      should avoid using the standard print statements as much as possible
-      for logging - helps in migrating to Python3 in future, and reduces
-      unwanted output when the module is included elsewhere.
+* System Portability: apart from the Python standard library, the
+  project should not rely on other third-party libraries. If such third-
+  party libraries become necessary, consider including them in the
+  repository or provide clear instructions for such dependency.
+  The module should isolate such dependencies to smaller part if possible.
+  The project should therefore be portable to many interpreters and
+  runtime environments.
+* Threading: threading vs event-driven programming style is decision that
+  best left to the application developer instead of forcing a particular
+  choice in the library. The project should not impose such decision in
+  reference implementation. If it is necessary to include such choice,
+  then it should provide reasonable set of alternatives pre-built in the
+  module.
+* Concise and Precise Code: Python enables expressing ideas in code in
+  less number of lines. The programmer should further honor the Pythonic
+  programming style. Less number of lines means that one can write software
+  faster, and with less garbage (syntactic sugar), one can read and
+  understand the code easily. Moreover, testing and review efforts are less.
+  The resulting improvement in programmer's efficiency reflects in her
+  motivation to write more clean code.
+* Testing: testing is an integral part of all code in this project. It
+  uses doctest whereever possible to integrate code with documentation and
+  testing. Alternatively, dedicated test and sample applications are
+  included for manual or automated testing. Generally, running a protocol module
+  on command line via Python interpreter should run its test cases and
+  report any errors.
+* Logging: standard logging module is used at various log levels. The code
+  should avoid using the standard print statements as much as possible
+  for logging - helps in migrating to Python3 in future, and reduces
+  unwanted output when the module is included elsewhere.
 
 On the other hand, implementation of an application may depend on
 the specific system, e.g., for audio/video interface, or specific threading vs. event
