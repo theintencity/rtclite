@@ -44,7 +44,11 @@ the specification, (b) which part of the specification is relevant to the
 code fragment, and vice-versa, and (c) the implicit code documentation 
 borrowed from the text in the specification.
 
-[Browse annotated source code](http://kundansingh.com/p/rtclite/index.html)
+[Browse annotated source code](http://kundansingh.com/p/rtclite/index.html),
+e.g., [rfc3550.py (RTP)](http://kundansingh.com/p/rtclite/std/ietf/rfc3550.py.html),
+[rfc3261.py (SIP)](http://kundansingh.com/p/rtclite/std/ietf/rfc3261.py.html),
+[caller.py](http://kundansingh.com/p/rtclite/app/sip/caller.py.html),
+[chat.py](http://kundansingh.com/p/rtclite/vnd/google/chat.py.html).
 
 Furthermore, the project contains various applications built on top of these
 open standards and open source implementations to demonstrate real use cases, e.g.,
