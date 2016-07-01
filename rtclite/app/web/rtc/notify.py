@@ -124,7 +124,11 @@ configuration = {'iceServers': [{"url": "stun:stun.l.google.com:19302"}]}
 class Space(object):
     def __init__(self, path):
         self.path, self.requests, self.pending = path, [], []
-        
+        logger.info('creating space %r', self.path)
+    
+    def __del__(self):
+        logger.info('deleting space %r', self.path)
+    
     @property
     def is_full(self):
         return len(self.requests) >= 2
@@ -175,7 +179,11 @@ def onopen(request):
 def onclose(request):
     if request.path in spaces:
         space = spaces[request.path]
+        other = space.get_other(request)
         space.remove(request)
+        if other:
+            space.remove(other)
+            other.close()
         if space.is_empty:
             del spaces[request.path]
 
@@ -231,6 +239,8 @@ if __name__ == "__main__":
     parser = OptionParser()
     parser.add_option('-d', '--verbose', dest='verbose', default=False, action='store_true',
                       help='enable debug level logging instead of default info')
+    parser.add_option('-q', '--quiet', dest='quiet', default=False, action='store_true',
+                      help='quiet mode with only critical debug level instead of default info')
     parser.add_option('-l', '--listen', dest='listen', metavar='TYPE:HOST:PORT',
                       help='listening transport address of the form TYPE:HOST:PORT, e.g., -l tcp:0.0.0.0:8080 or -l tls:0.0.0.0:443')
     parser.add_option('--certfile', dest='certfile', metavar='FILE',
@@ -251,7 +261,7 @@ if __name__ == "__main__":
     if options.test:
         sys.exit() # no tests
         
-    logging.basicConfig(level=logging.DEBUG if options.verbose else logging.INFO, format='%(asctime)s.%(msecs)d %(name)s %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    logging.basicConfig(level=logging.CRITICAL if options.quiet else logging.DEBUG if options.verbose else logging.INFO, format='%(asctime)s.%(msecs)d %(name)s %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
     
         
     if len(sys.argv) == 1: # show usage if no options supplied

@@ -216,7 +216,7 @@ class WebSocketHandler(SocketServer.StreamRequestHandler):
     # setup is called on a new incoming connection. Set socket options. Define object members.
     def setup(self):
         SocketServer.StreamRequestHandler.setup(self)
-        logger.debug('connection from %r', self.client_address)
+        logger.info('connection from %r', self.client_address)
         self.request.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
         self._pending, self._frame, self._frame_opcode, self._handshake_done = '', '', 0, False
     
@@ -227,6 +227,15 @@ class WebSocketHandler(SocketServer.StreamRequestHandler):
                 if self._handshake(): break
             else:
                 if self._read_frame(): break
+        logger.info('closing connection from %r', self.client_address)
+    
+    # close the connection
+    def close(self):
+        try:
+            self.request.sendall(struct.pack('>BB', 0x88, 0))
+            self.request.shutdown(socket.SHUT_WR)
+            # TODO: should close the socket after a brief timeout, instead of waiting for other end
+        except: pass
     
     # perform handshake
     def _handshake(self):

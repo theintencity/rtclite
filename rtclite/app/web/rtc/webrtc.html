@@ -51,7 +51,7 @@ or send it to another machine to open. Now you should be in a two-party video ca
     <video id="remote" autoplay controls></video>
     
     <div>
-        <a id="url" target="_blank"></a>
+        <a id="url"></a>
     </div>
     
     <script type="text/javascript">
@@ -76,6 +76,29 @@ or send it to another machine to open. Now you should be in a two-party video ca
         
         function onclose() {
             console.log("onclose");
+            if (window.history) {
+                window.history.pushState("without url", "webrtc test", window.location.href.split('?')[0]);
+            }
+            $("#url").href = window.location.href.split('?')[0];
+            $("#url").removeAttribute("target")
+            $("#url").innerHTML = "call closed, refresh the page for new call"
+            ws = null;
+            pending.splice(0, pending.length);
+            if (peerconnection) {
+                peerconnection.close();
+                peerconnection = null;
+            }
+            if (local_stream) {
+                var audio = local_stream.getAudioTracks();
+                var video = local_stream.getVideoTracks();
+                for (var i=0; i<audio.length; ++i) {
+                    audio[0].ended = true;
+                }
+                for (var i=0; i<video.length; ++i) {
+                    video[0].ended = true;
+                }
+                local_stream = null;
+            }
         }
         
         function onmessage(event) {
@@ -125,6 +148,7 @@ or send it to another machine to open. Now you should be in a two-party video ca
         }
         
         function do_peerconnection2(data) {
+            console.log('creating peer connection for mode=' + mode)
             peerconnection = new webkitRTCPeerConnection(data.configuration);
             
             peerconnection.onicecandidate = onicecandidate;
@@ -214,8 +238,12 @@ or send it to another machine to open. Now you should be in a two-party video ca
                 sid = ("" + Math.random()).substr(2, 10);
                 url += "?" + sid;
                 mode = "caller";
+                if (window.history) {
+                    window.history.pushState("with url", "webrtc test", url);
+                }
             }
             $("#url").href = url;
+            $("#url").setAttribute("target", "_blank");
             $("#url").innerHTML = url;
             
             setTimeout(do_local, 500);
