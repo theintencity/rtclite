@@ -104,7 +104,7 @@ Alternatively, click on individual modules below to view that annotated code and
 |[amf](http://kundansingh.com/p/rtclite/vnd/adobe/amf.py.html)| Action Message Format (AMF) 0 and 3 |367|
 |[rtmfp](http://kundansingh.com/p/rtclite/vnd/adobe/rtmfp.py.html)| Real-Time Media Flow Protocol (RTMFP) parsing and formatting |2095|
 || package: rtclite.vnd.google ||
-|[chat](http://kundansingh.com/p/rtclite/vnd/google/chat.py.html)cht| **Send and receive Google Chat messages** over XMPP |60|
+|[chat](http://kundansingh.com/p/rtclite/vnd/google/chat.py.html)| **Send and receive Google Chat messages** over XMPP |60|
 || package: rtclite ||
 |[common](http://kundansingh.com/p/rtclite/common.py.html)| Common utility methods and classes |410|
 |[multitask](http://kundansingh.com/p/rtclite/multitask.py.html)| Co-operative multitasking |469|
