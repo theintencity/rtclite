@@ -30,6 +30,47 @@ take care of sending or receiving the appropriate messages. A separate task is c
 on `stdin`, which is then delivered to the caller object, e.g., to send as text, DTMF or text-to-speech in the voice
 path.
 
+### Using the Caller class
+
+The following code snippet shows how to make an outbound call in your software. First import the relevant
+modules. We also change the `lineending` of the SDP (rfc4566) module to use LF instead of CRLF, to workaround
+wrong SIP implementation of the VoIP provider.
+```
+from rtclite.app.sip.caller import Caller, default_options
+from rtclite.std.ietf.rfc2396 import Address, URI
+from rtclite.std.ietf import rfc4566
+rfc4566.lineending = '\n'
+```
+You should set the logging level to `INFO` to see the call progress. Alternatively, set it to `DEBUG` for full
+trace.
+```
+import logging
+logging.basicConfig(level=logging.INFO)
+```
+Then configure the options including the target address in the `To` header and request `URI`. Additionally
+change the `samplerate` to match your machine's capture sample rate, and change other options.
+```
+options = default_options()
+options.to = Address('sip:18007741500@tollfree.alcazarnetworks.com')
+options.uri = URI('sip:18007741500@tollfree.alcazarnetworks.com')
+options.samplerate = 48000
+options.domain = 'example.net'
+options.use_lf = True
+```
+Finally, create the caller object with these options, and wait for it to complete.
+You can press the `ctrl-C` keys to terminate this wait. When done, close the caller object,
+so that it closes the call.
+```
+caller = Caller(options)
+try: caller.wait()
+except: pass
+caller.close()
+```
+These steps are automatically done when you invoke the `caller.py` module from the command line,
+as described later on this page. Additionally, you can change other options to further configure, or
+use the `caller` object differently in your software. The options are also described later on this page.
+
+
 ## Getting Started
 
 ### Dependencies
