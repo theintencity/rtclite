@@ -129,7 +129,7 @@ and send it along with your bug report to the author or support mailing list.
 '''
 
 try: import gevent
-except ImportError: print 'Please install gevent and its dependencies and include them in your PYTHONPATH'; import sys; sys.exit(1)
+except ImportError: print 'Please install gevent and its dependencies and include them in your PYTHONPATH'; raise
 from gevent import monkey, Greenlet, GreenletExit
 monkey.patch_socket()
 
@@ -150,9 +150,21 @@ except ImportError: sr = None
 
 logger = logging.getLogger('caller')
 
+default_ext_ip, default_domain, default_login = getlocaladdr()[0], socket.gethostname(), os.getlogin()
+
+def default_options():
+    class Options(object): pass
+    options = Options()
+    options.__dict__ = dict(verbose=False, quiet=False, test=False,
+       int_ip='0.0.0.0', ext_ip=default_ext_ip, transports='udp', port=5092, listen_queue=5, max_size=4096, fix_nat=False,
+       user_agent='', subject='', user=default_login, domain=default_domain, proxy='', authuser='', authpass='',
+       strict_route=False, to=None, uri=None, listen=False, register=False, register_interval=3600, retry_interval=60,
+       send='', auto_respond=200, auto_respond_after=3, auto_terminate_after=0, use_lf=False,
+       has_sdp=True, audio=True, audio_loopback=False, samplerate=44100, touchtone=True, recognize=False, textspeech=False
+    ).copy()
+    return options
 
 if __name__ == '__main__': # parse command line options, and set the high level properties
-    default_ext_ip, default_domain, default_login = getlocaladdr()[0], socket.gethostname(), os.getlogin()
     from optparse import OptionParser, OptionGroup
     parser = OptionParser()
     parser.add_option('-v', '--verbose',   dest='verbose', default=False, action='store_true', help='enable verbose mode for this module')
