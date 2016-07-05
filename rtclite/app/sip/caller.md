@@ -180,19 +180,23 @@ authentication, the request is failed.
     --uri=URI           the target request-URI, e.g., "sip:henry@iptel.org".
                         Default is to derive from the --to option
 ```
-The `to` option is mandatory for using the software in caller mode to make an outbound call.
+The `to` option is mandatory for using the software in caller mode to make an outbound call
+or message. Especially, this is required if there is no `listen` option supplied.
 The difference between the `To` header and the request `URI` is explained in RFC 3261.
 Note that the NAPTR and SRV looksup are performed as per RFC 3263 to derive the actual target
 address to send SIP request to.
 ```
-    --listen            enable listen mode without REGISTER and wait for
+    --listen            enable listen mode with or without REGISTER and wait for
                         incoming INVITE or MESSAGE
 ```
 Either the `to` or the `listen` option must be present. The `to` option creates an outbound request, whereas
-the `listen` option waits for inbound requests, e.g., to receive call or message.
+the `listen` option waits for inbound requests, e.g., to receive call or message. The `listen`
+option may be used together with `to` in which case it will send the outbound request, but also
+wait for incoming future requests, such as for IMs and future incoming calls.
 ```
-    --register          enable listen mode to send REGISTER to SIP server and
-                        wait for incoming INVITE or MESSAGE
+    --register          send REGISTER to SIP server. This is used with --listen to
+                        receive incoming INVITE or MESSAGE and with --to if the
+                        SIP server requires registration for outbound calls
     --register-interval=REGISTER_INTERVAL
                         registration refresh interval in seconds. Default is
                         3600
@@ -200,7 +204,7 @@ the `listen` option waits for inbound requests, e.g., to receive call or message
                         retry interval in seconds to re-try if register or
                         subscribe fails. Default is 60
 ```
-When used in conjunction with the `listen` option, these options do outbound SIP registration to the
+These options do outbound SIP registration to the
 application SIP server available at `domain` or `proxy` addresses.
 ```
     --send=SEND         enable outbound instant message. The supplied text
@@ -286,6 +290,71 @@ periodically, and the typed text (if not just digits) are sent out as spoken voi
 sent media path.
 
 ## Common Tasks
+
+### How to send/receive message or call using included SIP server?
+
+The [server](server.py) module has basic SIP registration and proxy server that you can register with.
+For testing, open three terminals - for the server and two endpoints. The two endpoints will use
+names of `alice` and `bob`.
+
+On the first terminal, start the server. You may optionally supply the `-d` option to enable
+debug-level logging. The server listens on default port 5060 for UDP, can be changed to listen on
+other transport using command line option, and can be terminated using `ctrl-C`.
+```
+$ python -m rtclite.app.sip.server -d
+09:12:56.668 sip.api INFO - starting agent on 0.0.0.0:5060 with transport udp
+```
+
+On the second terminal, start this software as follows. Replace the `domain` option to the
+server hostname or IP address if the server is not running on local host.
+```
+$ python -m rtclite.app.sip.caller --listen --register --user=alice --domain=localhost
+09:10:02.575 caller INFO - registered with SIP server as sip:alice@localhost
+<<< hello
+<<< how are you?
+I am good, and you?
+<<< good thank you
+^CKeyboardInterrupt
+```
+The `listen` and `register` options tell the software to register with the SIP server of
+domain `localhost` with the local user's name of `alice` and wait for incoming requests.
+
+On the third terminal start this software as follows. Use the `send` option to initiate an
+outbound instant message request, instead of the default call request. Again, the
+`listen` and `register` options tell the software to register with the SIP server and wait
+for incoming requests, in addition to sending the outbound request. If testing on the same
+machine, make sure to sue a different listening `port` than the first instance.
+```
+$ python -m rtclite.app.sip.caller --listen --register --user=bob --domain=localhost \
+         --port=5094 --to=sip:alice@localhost --send=hello
+09:10:04.736 caller INFO - registered with SIP server as sip:bob@localhost
+how are you?
+<<< I am good, and you?
+good thank you
+are you still there?
+09:10:30.775 caller INFO - received response: 480 Temporarily Unavailable
+^CKeyboardInterrupt
+```
+The above examples also show an example text chat conversation, where the user types a
+message on the terminal, and sees the received message. It also shows what happens when a
+message cannot be delivered.
+
+To test out a voice call, use the similar approach but do not specify the `send` option.
+Also, depending on your machine's audio device, you may need to specify the `samplerate` option.
+The command line for the second terminal is shown below.
+```
+$ python -m rtclite.app.sip.caller --listen --register --user=alice --domain=localhost \
+         --samplerate=48000
+```
+The command line for the third terminal is shown below. It does not use `listen` or `register`
+because it does not expect any incoming call. The `user` and `domain` options are also skipped
+so that it picks up the default user name and machine name.
+```
+$ python -m rtclite.app.sip.caller --to=sip:alice@localhost  --port=5064 --samplerate=48000
+```
+
+The SIP server we use in the above example does not require authentication. For servers that
+require authentication, you may also need to supply the `authuser` and `authpass` options.
 
 ### How to send/receive call using iptel.org SIP service?
 

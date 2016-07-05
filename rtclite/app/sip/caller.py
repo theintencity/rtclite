@@ -17,6 +17,7 @@ Usage: caller.py [options]
 Options:
   -h, --help            show this help message and exit
   -v, --verbose         enable verbose mode for this module
+  -q, --quiet'          enable quiet mode with only critical logging
 
   Network:
     Use these options for network configuration
@@ -61,10 +62,11 @@ Options:
                         <sip:henry@iptel.org>'. This is mandatory
     --uri=URI           the target request-URI, e.g., "sip:henry@iptel.org".
                         Default is to derive from the --to option
-    --listen            enable listen mode without REGISTER and wait for
-                        incoming INVITE or MESSAGE
-    --register          enable listen mode to send REGISTER to SIP server and
-                        wait for incoming INVITE or MESSAGE
+    --listen            enable listen mode with or without REGISTER and wait
+                        for incoming INVITE or MESSAGE
+    --register          send REGISTER to SIP server. This is used with --listen to
+                        receive incoming INVITE or MESSAGE and with --to if the
+                        SIP server requires registration for outbound calls
     --register-interval=REGISTER_INTERVAL
                         registration refresh interval in seconds. Default is
                         3600
@@ -178,8 +180,8 @@ if __name__ == '__main__': # parse command line options, and set the high level 
     group2.add_option('',   '--strict-route',dest='strict_route', default=False, action='store_true', help='use strict routing instead of default loose routing when proxy option is specified')
     group2.add_option('',   '--to',      dest='to', default=None, help='the target SIP address, e.g., \'"Henry Sinnreich" <sip:henry@iptel.org>\'. This is mandatory')
     group2.add_option('',   '--uri',     dest='uri', default=None, help='the target request-URI, e.g., "sip:henry@iptel.org". Default is to derive from the --to option')
-    group2.add_option('',   '--listen',  dest='listen', default=False, action='store_true', help='enable listen mode without REGISTER and wait for incoming INVITE or MESSAGE')
-    group2.add_option('',   '--register',dest='register',default=False, action='store_true', help='enable listen mode to send REGISTER to SIP server and wait for incoming INVITE or MESSAGE')
+    group2.add_option('',   '--listen',  dest='listen', default=False, action='store_true', help='enable listen mode with or without REGISTER and wait for incoming INVITE or MESSAGE')
+    group2.add_option('',   '--register',dest='register',default=False, action='store_true', help='send REGISTER to SIP server. This is used with --listen to receive incoming INVITE or MESSAGE and with --to if the SIP server requires registration for outbound calls')
     group2.add_option('',   '--register-interval', dest='register_interval', default=3600, type='int', help='registration refresh interval in seconds. Default is 3600')
     group2.add_option('',   '--retry-interval', dest='retry_interval', default=60, type='int', help='retry interval in seconds to re-try if register or subscribe fails. Default is 60')
     group2.add_option('',   '--send',    dest='send',    default='', help='enable outbound instant message. The supplied text with this option is sent in outbound MESSAGE request')
@@ -222,7 +224,7 @@ if __name__ == '__main__': # parse command line options, and set the high level 
     if options.use_lf:
         rfc4566.lineending = '\n'
     
-    if options.register:
+    if options.register and not options.to:
         options.listen = True
         
     if not options.listen and not options.to: 
@@ -454,13 +456,14 @@ class Caller(object):
         self.stacks.start()
         if self.options.register:
             self._ua.append(Register(self, self.stacks.default))
-        elif self.options.send:
-            self._ua.append(Message(self, self.stacks.default))
-        elif not self.options.listen:
-            call = Call(self, self.stacks.default)
-            call.sample_rate = self.options.samplerate or 44100
-            self._ua.append(call)
-            call.sendInvite()
+        if self.options.to:
+            if self.options.send:
+                self._ua.append(Message(self, self.stacks.default))
+            else:
+                call = Call(self, self.stacks.default)
+                call.sample_rate = self.options.samplerate or 44100
+                self._ua.append(call)
+                call.sendInvite()
             
     def wait(self):
         self._closeQueue.get()
@@ -475,7 +478,10 @@ class Caller(object):
         if not self.options.listen:
             ua.sendResponse(ua.createResponse(501, 'Not Implemented'))
         else:
-            logger.info('received: %s', request.body)
+            print '<<<', request.body
+            # logger.info('received: %s', request.body)
+            if not [m for m in self._ua if isinstance(m, Message)]: # not found any message item
+                self._ua.append(Message(self, self.stacks.default, ua, request))
             if options.auto_respond:
                 ua.sendResponse(ua.createResponse(options.auto_respond, 'OK' if options.auto_respond >= 200 and options.auto_respond < 300 else 'Decline'))
             
@@ -487,6 +493,7 @@ class Caller(object):
             if self.options.auto_respond >= 200 and self.options.auto_respond < 300:
                 call = Call(self, ua.stack)
                 call.sample_rate = self.options.samplerate or 44100
+                self._ua.append(call)
                 call.receivedRequest(ua, request)
             elif self.options.auto_respond:
                 ua.sendResponse(ua.createResponse(self.options.auto_respond, 'Decline'))
@@ -500,19 +507,26 @@ class Caller(object):
     def sendText(self, text): # called from a different greenlet
         for ua in self._ua:
             if hasattr(ua, 'sendText') and callable(ua.sendText):
+                logger.debug('sendText on %r', ua)
                 ua.sendText(text)
 
         
 class Message(UA):
-    def __init__(self, app, stack):
+    def __init__(self, app, stack, ua=None, request=None):
         UA.__init__(self, app, stack)
-        remoteParty = self.options.to
-        remoteTarget = self.options.uri
-        self._createClient(self.localParty, remoteParty, remoteTarget)
-        if self.options.proxy:
-            self.proxy = rfc2396.URI('%s:%s'%(self.scheme, self.options.proxy, '' if self.options.strict_route else ';lr'))
-            self._ua.routeSet = [rfc3261.Header('<%s>'%(str(self.proxy),), 'Route')]
-        self._ua.sendRequest(self._createRequest(self.options.send))
+        if ua is not None and request is not None: # receive message
+            self._ua, ua.app = ua, self
+            if self.options.proxy:
+                self.proxy = rfc2396.URI('%s:%s'%(self.scheme, self.options.proxy, '' if self.options.strict_route else ';lr'))
+                self._ua.routeSet = [rfc3261.Header('<%s>'%(str(self.proxy),), 'Route')]
+        else:
+            remoteParty = self.options.to
+            remoteTarget = self.options.uri
+            self._createClient(self.localParty, remoteParty, remoteTarget)
+            if self.options.proxy:
+                self.proxy = rfc2396.URI('%s:%s'%(self.scheme, self.options.proxy, '' if self.options.strict_route else ';lr'))
+                self._ua.routeSet = [rfc3261.Header('<%s>'%(str(self.proxy),), 'Route')]
+            self._ua.sendRequest(self._createRequest(self.options.send))
         
     def close(self):
         self.app.callClosed(self)
@@ -535,6 +549,9 @@ class Message(UA):
     def sendText(self, text):
         self._ua.sendRequest(self._createRequest(text))
     
+    def receivedResponse(self, ua, response):
+        if response.response >= 300:
+            logger.info('received response: %d %s'%(response.response, response.responsetext))
     
     
 class Call(UA):
