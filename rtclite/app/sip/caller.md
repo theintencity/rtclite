@@ -2,7 +2,8 @@
 
 This article describe the command line SIP endpoint.
 
-> *module*: rtclite.app.sip.caller
+> *module*: rtclite.app.sip.caller, 
+> file [caller.py](caller.py), also see [blog post](http://blog.kundansingh.com/2016/07/how-to-make-phone-calls-from-command.html), [video demo](https://youtu.be/eiepNTLZCvU)
 
 ### Motivation
 
