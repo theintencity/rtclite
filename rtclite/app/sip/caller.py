@@ -2,9 +2,9 @@
 
 '''
 A caller application to initiate or receive VoIP calls from command line.
-It using SIP, SDP, RTP, voip modules and external py-audio project.
+It using SIP, SDP, RTP, client modules and external py-audio project.
 
-You need to include py-audio module from http://code.google.com/p/py-audio in your path.
+You need to include py-audio module from https://github.com/theintencity/py-audio in your path.
 Make sure it contains audiodev.so module.
 
 $ export PYTHONPATH=.:~/py-audio
@@ -154,6 +154,7 @@ if __name__ == '__main__': # parse command line options, and set the high level 
     from optparse import OptionParser, OptionGroup
     parser = OptionParser()
     parser.add_option('-v', '--verbose',   dest='verbose', default=False, action='store_true', help='enable verbose mode for this module')
+    parser.add_option('-q', '--quiet',     dest='quiet', default=False, action='store_true', help='enable quiet mode with only critical logging')
     parser.add_option('--test', dest='test', default=False, action='store_true', help='run any tests and exit')
     
     group1 = OptionGroup(parser, 'Network', 'Use these options for network configuration')
@@ -216,7 +217,7 @@ if __name__ == '__main__': # parse command line options, and set the high level 
     handler.setFormatter(logging.Formatter('%(asctime)s.%(msecs)d %(name)s %(levelname)s - %(message)s', datefmt='%H:%M:%S'))
     logging.getLogger().addHandler(handler)
     
-    logger.setLevel(options.verbose and logging.DEBUG or logging.INFO)
+    logger.setLevel(options.quiet and logging.CRITICAL or options.verbose and logging.DEBUG or logging.INFO)
     
     if options.use_lf:
         rfc4566.lineending = '\n'
@@ -485,6 +486,7 @@ class Caller(object):
             logger.info('received INVITE')
             if self.options.auto_respond >= 200 and self.options.auto_respond < 300:
                 call = Call(self, ua.stack)
+                call.sample_rate = self.options.samplerate or 44100
                 call.receivedRequest(ua, request)
             elif self.options.auto_respond:
                 ua.sendResponse(ua.createResponse(self.options.auto_respond, 'Decline'))
@@ -596,15 +598,15 @@ class Call(UA):
             else:
                 pause_time += 0.020
             if phrase_time > phrase_threshold and pause_time > pause_threshold:
-                print 'creating audio data'
+                logger.debug('creating audio data')
                 frames.append('\x00\x00'*50) # one second of silence
                 audio = sr.AudioData("".join(frames), 8000, 2)
                 phrase_time = pause_time = 0.0
                 frames[:] = []
-                print 'recognizing'
+                logger.debug('recognizing')
                 #try: print 'text=', r.recognize_sphinx(audio)
                 #except: pass
-                try: print 'text=', r.recognize_google(audio)
+                try: print r.recognize_google(audio)
                 except: pass
     
     def sendInvite(self):
