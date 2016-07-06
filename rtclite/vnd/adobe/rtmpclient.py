@@ -35,7 +35,7 @@ want to work on individual resource objects, use the open method and the returne
 
 import os, sys, traceback, time, urlparse, socket, logging
 from ... import multitask
-from .rtmp import Protocol, Message, Command, ConnectionClosed, Stream, FLV
+from .rtmp import Protocol, Message, Header, Command, ConnectionClosed, Stream, FLV
 from .amf import Object
 
 logger = logging.getLogger('rtmpclient')
@@ -116,6 +116,7 @@ class NetConnection(object):
     def __init__(self):
         self.client = self.path = None
         self.data = Object(videoCodecs=252.0, audioCodecs=3191.0, flashVer='WIN 10,0,32,18', swfUrl=None, videoFunction=1.0, capabilities=15.0, fpad=False, objectEncoding=0.0)
+        self.error = '' # to indicate any error message str or dict
     
     def connect(self, url, timeout=None, *args): # Generator to connect to the given url, and return True or False.
         if url[:7].lower() != 'rtmp://': raise ValueError('Invalid URL scheme. Must be rtmp://')
@@ -132,8 +133,10 @@ class NetConnection(object):
             self.client = yield Client(sock).handshake()
             result, fault = yield self.client.send(Command(name='connect', cmdData=self.data, args=args), timeout=timeout)
             logger.debug('NetConnection.connect result=%r fault=%r', result, fault)
+            if fault is not None and hasattr(fault, 'args'): self.error = fault.args
         except: 
             logger.exception('NetConnection.connect failed to do handshake')
+            self.error = 'failed to do handshake'
             try: sock.close()
             except: pass
             raise StopIteration, False
