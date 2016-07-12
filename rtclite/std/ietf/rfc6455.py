@@ -299,15 +299,14 @@ class WebSocketHandler(SocketServer.StreamRequestHandler):
     # close the connection
     def close(self):
         try:
-            self.request.sendall(struct.pack('>BB', 0x88, 0))
+            self.request.sendall(send_server_event(opcode=0x8))
             self.request.shutdown(socket.SHUT_WR)
             # TODO: should close the socket after a brief timeout, instead of waiting for other end
         except: pass
     
     # perform handshake
     def _handshake(self, data):
-        if not data: # connection was closed during handshake
-            return True # so that handle() returns
+        if not data: return True # connection was closed during handshake, so that handle() returns
         self._pending += data # store the received data in _pending and check if enough data received
         verify_handshake = userdata = None
         if hasattr(self.server, 'onhandshake') and callable(self.server.onhandshake):
@@ -321,38 +320,35 @@ class WebSocketHandler(SocketServer.StreamRequestHandler):
             if path:  # success handshake
                 self.path, self._handshake_done = path, True
                 _callit(self.server, 'onopen', self)
-            else:
-                return True # handshake failed, so that handle() returns
+            else: return True # handshake failed, so that handle() returns
 
     # read a single frame and invoke any onmessage or onclose callback
     def _read_frame(self, data):
         if data: self._pending += data # store the received data in _pending and check if enough
         while True:
             typ, value, self._pending, self._rxstate = receive_server_event(data=self._pending, state=self._rxstate)
-            if typ == 'send':
-                self.request.sendall(value)
-            elif typ == 'onmessage':
-                _callit(self.server, 'onmessage', self, value)
+            if typ == 'send': self.request.sendall(value)
+            elif typ == 'onmessage': _callit(self.server, 'onmessage', self, value)
             if self._rxstate is None or typ == 'notenough' and not data: # connection was closed
                 logger.info('%r - closed', self.client_address)
                 _callit(self.server, 'onclose', self)
                 return True # so that handle() returns
-            elif typ == 'notenough':
-                break # break from loop
+            elif typ == 'notenough': break # break from loop
 
     # send one message in one frame. The opcode argument must be either 1 (text) or 2 (binary).
     def send_message(self, message, opcode=1):
         if opcode != 1 and opcode != 2: raise RuntimeError('invalid opcode')
-        if opcode == 1: message = message.encode('utf-8') # convert to binary
-        length = len(message)
-        logger.debug('sending %d bytes frame', length)
-        
-        if length <= 125:
-            self.request.sendall(struct.pack('>BB', 0x80 | opcode, length) + message)
-        elif length >= 126 and length <= 65535:
-            self.request.sendall(struct.pack('>BBH', 0x80 | opcode, 126, length) + message)
-        else:
-            self.request.sendall(struct.pack('>BBQ', 0x80 | opcode, 127, length) + message)
+        self.request.sendall(send_server_event(opcode=opcode, message=message))
+
+def send_server_event(opcode, message=''):
+    if opcode == 0x8: return struct.pack('>BB', 0x88, 0)
+    if opcode == 1: message = message.encode('utf-8') # convert to binary
+    length = len(message)
+    logger.debug('sending %d bytes frame', length)
+    
+    if length <= 125: return struct.pack('>BB', 0x80 | opcode, length) + message
+    elif length >= 126 and length <= 65535: return struct.pack('>BBH', 0x80 | opcode, 126, length) + message
+    else: return struct.pack('>BBQ', 0x80 | opcode, 127, length) + message
  
 
 def receive_server_event(data, state):
@@ -402,10 +398,8 @@ def receive_server_event(data, state):
     except NotEnough:
         return ('notenough', None, data, state)
     except Terminated, e:
-        if e.response:
-            return ('send', e.response, '', None)
-        else:
-            return ('onclose', None, '', None)
+        if e.response: return ('send', e.response, '', None)
+        else: return ('onclose', None, '', None)
     except:
         logger.exception('exception')
         return ('onclose', None, '', None)
@@ -435,25 +429,17 @@ def receive_handshake(msg, verify_handshake=None, userdata=None):
         headers = mimetools.Message(StringIO(data))
         # validate firstline and some headers
         method, path, protocol = firstline.split(' ', 2)
-        if method != 'GET':
-            raise HTTPError('405 Method Not Allowed')
-        if protocol != "HTTP/1.1":
-            raise HTTPError('505 HTTP Version Not Supported')
-        if headers.get('Upgrade', None) != 'websocket':
-            raise HTTPError('403 Forbidden', 'missing or invalid Upgrade header')
-        if headers.get('Connection', None) != 'Upgrade':
-            raise HTTPError('400 Bad Request', 'missing or invalid Connection header')
-        if 'Sec-WebSocket-Key' not in headers:
-            raise HTTPError('400 Bad Request', 'missing Sec-WebSocket-Key header')
-        if int(headers.get('Sec-WebSocket-Version', '0')) < 13: # version too old
-            raise HTTPError('400 Bad Request', 'missing or unsupported Sec-WebSocket-Version')
+        if method != 'GET': raise HTTPError('405 Method Not Allowed')
+        if protocol != "HTTP/1.1": raise HTTPError('505 HTTP Version Not Supported')
+        if headers.get('Upgrade', None) != 'websocket': raise HTTPError('403 Forbidden', 'missing or invalid Upgrade header')
+        if headers.get('Connection', None) != 'Upgrade': raise HTTPError('400 Bad Request', 'missing or invalid Connection header')
+        if 'Sec-WebSocket-Key' not in headers: raise HTTPError('400 Bad Request', 'missing Sec-WebSocket-Key header')
+        if int(headers.get('Sec-WebSocket-Version', '0')) < 13: raise HTTPError('400 Bad Request', 'missing or unsupported Sec-WebSocket-Version')
         
         result = None # invoke app below for result if needed
         if verify_handshake is not None and callable(verify_handshake):
-            try:
-                result = verify_handshake(userdata=userdata, path=path, headers=headers)
-            except HTTPError:
-                raise # re-raise only HTTPError, and mask all others
+            try: result = verify_handshake(userdata=userdata, path=path, headers=headers)
+            except HTTPError: raise # re-raise only HTTPError, and mask all others
             except:
                 logger.exception('exception in server app: verify_handshake')
                 raise HTTPError('500 Server Error', 'exception in server app: verify_handshake')
@@ -461,14 +447,12 @@ def receive_handshake(msg, verify_handshake=None, userdata=None):
         # generate the response, and append result returned by onhandshake if applicable
         key = headers['Sec-WebSocket-Key']
         digest = base64.b64encode(hashlib.sha1(key + _magic).hexdigest().decode('hex'))
-        response = ['HTTP/1.1 101 Switching Protocols', 'Upgrade: websocket', 'Connection: Upgrade',
-                    'Sec-WebSocket-Accept: %s' % digest]
+        response = ['HTTP/1.1 101 Switching Protocols', 'Upgrade: websocket', 'Connection: Upgrade', 'Sec-WebSocket-Accept: %s' % digest]
         if result: response.extend(result)
         response = '\r\n'.join(response) + '\r\n\r\n' # we always respond with CRLF line ending
         
         return (response, msg, path)
-    except HTTPError, e: # send error response
-        return (str(e), msg, '')
+    except HTTPError, e: return (str(e), msg, '') # send error response
         
 
 # The server function that listens on a socket and responds to websocket handshake.

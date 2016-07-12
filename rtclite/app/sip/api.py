@@ -14,7 +14,7 @@ from ... import multitask
 from ...std.ietf.rfc2396 import Address, URI
 from ...std.ietf.rfc3261 import Stack, Message, Header, UserAgent, Proxy, TransportInfo
 from ...std.ietf.rfc2617 import createAuthenticate
-from ...std.ietf.rfc6455 import receive_handshake, receive_server_event, HTTPError
+from ...std.ietf.rfc6455 import receive_handshake, receive_server_event, send_server_event, HTTPError
 from ...common import getlocaladdr, multitask_Timer as Timer
 
 logger = logging.getLogger('sip.api')
@@ -268,13 +268,7 @@ class Agent(Dispatcher):
             try:
                 if stack.sock.type == socket.SOCK_STREAM: # for TCP send only if a connection exists to the remote.
                     if stack.transport.type in ('ws', 'wss'):
-                        if len(data) < 126:
-                            init = struct.pack('>BB', 0x81, len(data))
-                        elif len(data) < 65536:
-                            init = struct.pack('>BBH', 0x81, 126, len(data))
-                        else:
-                            raise ValueError, 'cannot send long message'
-                        data = init + data
+                        data = send_server_event(opcode=1, message=data)
                     if remote in self.conn:
                         yield multitask.send(self.conn[remote], data) # and send using that connected TCP socket.
                     else:
