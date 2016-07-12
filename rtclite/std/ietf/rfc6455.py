@@ -171,6 +171,64 @@ The send method takes a message data and optional opcode with value 1 (for UTF-8
 The close function closes the connection.
 
   request.close()
+  
+-------------
+Low-level API
+
+The low level API is for parsing and formatting WebSocket requests and responses.
+It is independenct of the concurrency mechanism, and delegates that to the application.
+
+  result, data, path = receive_handshake(data, verify_handshake=None, userdata=None)
+  
+To receive handshake message at the server, and to return the appropriate response.
+It returns tuple (result, pending, path) where result is either None or a string to respond,
+and pending is unparsed/remaining data from the supplied received data. The path value is only
+valid if the handshake was successful and is from the request line.
+When result is None, it means the handshake is waiting for more received data. 
+
+The function does some verification, e.g., to check for necessary headers or websocket
+minimum version of 13. Additional verification can be done by supplying the
+verify_handshake and userdata arguments as follows.
+
+  def verify_handshake(userdata=None, path='/', headers=None): 
+    ...
+Here path is from the request line and headers is of type mimetools.Message. The function
+may return a list of additional headers to send in the successful handshake response.
+For example, the caller can check for websocket protocol of "sip", and respond with that
+header as follows.
+
+    if headers.get('Sec-WebSocket-Protocol', None) != 'sip':
+      raise HTTPError('400 Bad Request', 'missing or wrong Sec-WebSocket-Protocol')
+    return ['Sec-WebSocket-Protocol: sip']
+     
+The receive_handshake function can process the HTTPError exception from verify_handshake
+and return the appropriate response. The caller should keep track of whether the handshake
+was successful or not by checking the return result and path values.
+
+Once the handshake is successful, the application can receive subsequent messages or events
+using the receive_server_event function as follows. First receive the data on the connection.
+Then append it to any previous remaining data. Call the function with the combined data.
+
+  while True:
+      type, value, data, state = receive_server_event(data, state)
+      # handle type and value if applicable
+      if type == 'notenough': break
+
+Here, data is the received data supplied to the function, and the unparsed/remaining data
+returned from the function. The state is used internally by the function, and must be
+set to None for the first invocation on a connection. Internally, it builds the local
+state containing any partial frame, and returns that. Subsequent call to this function must
+supply the state value that was returned in the previous call.
+
+The type and value contain the event type and associated value. If the type is "onclose", it
+means the connection was closed, or a close frame was received. If the type is "onmessage",
+the value is the received message. If the type is "send", then value is the outgoing
+message that should be sent back to the client on the connection, e.g., for "ping" response.
+If type is None or "notenough" then more data should be received and supplied by
+calling this function again.
+
+When the returned "state" is None, the caller should close the socket connection, after
+handling the "type".
 '''
 
 
@@ -203,9 +261,15 @@ class HTTPError(Exception):
 
 # connection is closed
 class Terminated(Exception):
-    def __init__(self, reason = 'closed'):
+    def __init__(self, reason = 'closed', response = ''):
         Exception.__init__(self, reason)
-    
+        self.response = response
+
+# not enough data yet
+class NotEnough(Exception):
+    def __init__(self):
+        Exception.__init__(self, 'not enough')
+
 
 
 # Server handler class, which can be used with SocketServer.TCPServer and any mix-in.
@@ -218,15 +282,18 @@ class WebSocketHandler(SocketServer.StreamRequestHandler):
         SocketServer.StreamRequestHandler.setup(self)
         logger.info('connection from %r', self.client_address)
         self.request.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
-        self._pending, self._frame, self._frame_opcode, self._handshake_done = '', '', 0, False
+        self._pending, self._frame, self._frame_opcode, self._handshake_done, self._rxstate = '', '', 0, False, None
     
     # handle is called to process the incoming connection. Invoke handshake or read frame.
     def handle(self):
         while True:
+            # receive some data; will block
+            data = self.request.recv(_buffer_size)
             if not self._handshake_done:
-                if self._handshake(): break
+                logger.debug('received handshake %d bytes\n%s', len(data) if data else 0, data or 'None')
+                if self._handshake(data): break
             else:
-                if self._read_frame(): break
+                if self._read_frame(data): break
         logger.info('closing connection from %r', self.client_address)
     
     # close the connection
@@ -238,116 +305,41 @@ class WebSocketHandler(SocketServer.StreamRequestHandler):
         except: pass
     
     # perform handshake
-    def _handshake(self):
-        # receive some data; will block
-        data = self.request.recv(_buffer_size)
-        if not data: # socket was closed
+    def _handshake(self, data):
+        if not data: # connection was closed during handshake
             return True # so that handle() returns
-        
-        # store the received data in _pending, and check if enough data is received yet?
-        logger.debug('received handshake %d bytes\n%s', len(data), data)
-        self._pending += data
-        if self._pending.find('\r\n\r\n') < 0: # not enough data
-            return
-        
-        # extract the first HTTP request until CRLFCRLF
-        parts = self._pending.split('\r\n\r\n', 1)
-        self._pending, data = parts[1], parts[0].strip()
-        firstline = data.split('\r\n', 1)[0]
-        
-        try:
-            # parse first line, and validate method and protocol
-            method, path, protocol = firstline.split(' ', 2)
-            if method != 'GET':
-                raise HTTPError('405 Method Not Allowed')
-            if protocol != 'HTTP/1.1':
-                raise HTTPError('505 HTTP Version Not Supported')
-            
-            # extract headers, and validate some headers.
-            headers = mimetools.Message(StringIO(data.split('\r\n', 1)[1]))
-            if headers.get('Upgrade', None) != 'websocket':
-                raise HTTPError('403 Forbidden', 'missing or invalid Upgrade header')
-            if headers.get('Connection', None) != 'Upgrade':
-                raise HttpError('400 Bad Request', 'missing or invalid Connection header')
-            if 'Sec-WebSocket-Key' not in headers:
-                raise HTTPError('400 Bad Request', 'missing Sec-WebSocket-Key header')
-            if headers.get('Sec-WebSocket-Version', None) != '13':
-                raise HttpError('400 Bad Request', 'missing or unsupported Sec-WebSocket-Version')
-            
-            result = None
-            if hasattr(self.server, 'onhandshake') and callable(self.server.onhandshake):
-                result = self.server.onhandshake(self, path, headers) # may raise HTTPError
+        self._pending += data # store the received data in _pending and check if enough data received
+        verify_handshake = userdata = None
+        if hasattr(self.server, 'onhandshake') and callable(self.server.onhandshake):
+            verify_handshake, userdata = self.server.onhandshake, self.request
+        response, self._pending, path = receive_handshake(self._pending, verify_handshake=verify_handshake, userdata=userdata)
 
-            # if result is None, onhandshake is undefined; assume success
-
-            self.path = path # so that apps can use it
-
-            # generate the response, and append result returned by onhandshake if applicable
-            key = headers['Sec-WebSocket-Key']
-            digest = base64.b64encode(hashlib.sha1(key + _magic).hexdigest().decode('hex'))
-            response = ['HTTP/1.1 101 Switching Protocols', 'Upgrade: websocket', 'Connection: Upgrade',
-                        'Sec-WebSocket-Accept: %s' % digest]
-            if result: response.extend(result)
-            response = '\r\n'.join(response) + '\r\n\r\n'
-            
-            # send the response, and finish handshake phase. _pending contains remaining data if any.
+        if response: # send the response, and finish handshake phase. _pending contains remaining data if any.
             logger.debug('sending handshake %d bytes\n%s', len(response), response)
             self.request.sendall(response)
-            self._handshake_done = True
-            logger.info('%s - %s - HTTP/1.1 101 Switching Protocols', self.client_address, firstline)
-            
-            # invoke onopen callback
-            _callit(self.server, 'onopen', self)
-        except HTTPError, e: # send error response
-            logger.debug('sending handshake response\n%s', str(e))
-            self.request.sendall(str(e))
-            logger.info('%s - %s - HTTP/1.1 %s', self.client_address, firstline, e.response)
-            return True # so that handle() returns
-    
-    # read a single frame and invoke any onmessage or onclose callback
-    def _read_frame(self):
-        try:
-            # TODO: should read from _pending first before calling rfile.read()
-            data = self.rfile.read(2)
-            if not data: raise Terminated()
-            
-            final, opcode, length = (ord(data[0]) & 0x80) != 0, ord(data[0]) & 0x0f, ord(data[1]) & 0x7f
-            if final and opcode == 0x08: raise Terminated()
-            #if length == 0: raise HTTPError('closed')
-            if length == 126: length = struct.unpack('>H', self.rfile.read(2))[0]
-            elif length == 127: length = struct.unpack('>Q', self.rfile.read(8))[0]
-            
-            logger.debug('0x%x 0x%x', ord(data[0]), ord(data[1]))
-            if ord(data[1]) & 0x80 != 0:
-                masks = [ord(byte) for byte in self.rfile.read(4)]
+            logger.info('%s - GET %s HTTP/1.1 - %s', self.client_address, path, response.split('\r\n', 1)[0])
+            if path:  # success handshake
+                self.path, self._handshake_done = path, True
+                _callit(self.server, 'onopen', self)
             else:
-                logger.debug('invalid mask not present')
-                self.request.sendall(struct.pack('>BB', 0x88, 0))
-                raise Terminated() # mask must be present from client
-            
-            logger.debug('received %d bytes frame of opcode=0x%x', length, opcode)
-            decoded = ''.join((chr(ord(char) ^ masks[index % 4]) for index, char in enumerate(self.rfile.read(length))))
-            
-            if opcode == 0 or opcode == 1 or opcode == 2:
-                if opcode != 0: self._frame_opcode = opcode # first fragment opcode
-                self._frame += decoded # store the fragment in frame
-                if final: # invoke onmessage on full frame
-                    decoded, self._frame = self._frame, ''
-                    if self._frame_opcode == 1: # text, utf-8
-                        try: decoded = decoded.decode('utf-8')
-                        except UnicodeDecodeError:
-                            logger.info('unicode decode error %r', decoded)
-                            self.request.sendall(struct.pack('>BB', 0x88, 0))
-                            raise Terminated()
-                    _callit(self.server, 'onmessage', self, decoded)
-            elif final and opcode == 0x9 and length < 126: # ping
-                self.request.sendall(struct.pack('>BB', 0x8a, length) + decoded)
-        except:
-            if not isinstance(sys.exc_info()[1], Terminated): logger.exception('exception')
-            logger.info('%r - closed', self.client_address)
-            _callit(self.server, 'onclose', self)
-            return True # so that handle() returns
- 
+                return True # handshake failed, so that handle() returns
+
+    # read a single frame and invoke any onmessage or onclose callback
+    def _read_frame(self, data):
+        if data: self._pending += data # store the received data in _pending and check if enough
+        while True:
+            typ, value, self._pending, self._rxstate = receive_server_event(data=self._pending, state=self._rxstate)
+            if typ == 'send':
+                self.request.sendall(value)
+            elif typ == 'onmessage':
+                _callit(self.server, 'onmessage', self, value)
+            if self._rxstate is None or typ == 'notenough' and not data: # connection was closed
+                logger.info('%r - closed', self.client_address)
+                _callit(self.server, 'onclose', self)
+                return True # so that handle() returns
+            elif typ == 'notenough':
+                break # break from loop
+
     # send one message in one frame. The opcode argument must be either 1 (text) or 2 (binary).
     def send_message(self, message, opcode=1):
         if opcode != 1 and opcode != 2: raise RuntimeError('invalid opcode')
@@ -363,6 +355,121 @@ class WebSocketHandler(SocketServer.StreamRequestHandler):
             self.request.sendall(struct.pack('>BBQ', 0x80 | opcode, 127, length) + message)
  
 
+def receive_server_event(data, state):
+    try:
+        if state is None: state = dict(frame='', opcode=0)
+        if len(data) < 2: raise NotEnough
+    
+        final, opcode, length = (ord(data[0]) & 0x80) != 0, ord(data[0]) & 0x0f, ord(data[1]) & 0x7f
+        if final and opcode == 0x08: raise Terminated
+        offset = 2
+        #if length == 0: raise HTTPError('closed')
+        if length == 126:
+            if len(data) < offset+2: raise NotEnough
+            length, offset = struct.unpack('>H', data[offset:offset+2])[0], offset+2
+        elif length == 127:
+            if len(data) < offset+8: raise NotEnough
+            length, offset = struct.unpack('>Q', data[offset:offset+8])[0], offset+8
+                
+        logger.debug('0x%x 0x%x', ord(data[0]), ord(data[1]))
+        if ord(data[1]) & 0x80 != 0:
+            masks, offset = [ord(byte) for byte in data[offset:offset+4]], offset+4
+        else:
+            logger.debug('invalid mask not present')
+            raise Terminated(response=struct.pack('>BB', 0x88, 0)) # mask must be present from client
+        
+        if len(data) < offset+length: raise NotEnough
+        logger.debug('received %d bytes frame of opcode=0x%x', length, opcode)
+        decoded = ''.join((chr(ord(char) ^ masks[index % 4]) for index, char in enumerate(data[offset:offset+length])))
+        offset += length
+        data = data[offset:] # remaining data
+        
+        if opcode == 0 or opcode == 1 or opcode == 2:
+            if opcode != 0: state['opcode'] = opcode # first fragment opcode
+            state['frame'] += decoded # store the fragment in frame
+            if final: # invoke onmessage on full frame
+                decoded, state['frame'] = state['frame'], ''
+                if state['opcode'] == 1: # text, utf-8
+                    try: decoded = decoded.decode('utf-8')
+                    except UnicodeDecodeError:
+                        logger.info('unicode decode error %r', decoded)
+                        raise Terminated(response=struct.pack('>BB', 0x88, 0))
+                return ('onmessage', decoded, data, state)
+        elif final and opcode == 0x9 and length < 126: # ping
+            return ('send', struct.pack('>BB', 0x8a, length) + decoded, data, state)
+        
+        return ('notenough', None, data, state) # not enough
+    except NotEnough:
+        return ('notenough', None, data, state)
+    except Terminated, e:
+        if e.response:
+            return ('send', e.response, '', None)
+        else:
+            return ('onclose', None, '', None)
+    except:
+        logger.exception('exception')
+        return ('onclose', None, '', None)
+ 
+
+def receive_handshake(msg, verify_handshake=None, userdata=None):
+    index1, index2 = msg.find('\n\n'), msg.find('\n\r\n') # handle both LFLF and CRLFCRLF
+    if index2 > 0 and index1 > 0: index = (index1 + 2) if index1 < index2 else (index2 + 3)
+    elif index1 > 0: index = index1 + 2
+    elif index2 > 0: index = index2 + 3
+    else:
+        logger.debug('no CRLF found')
+        return (None, msg, '') # not enough header data yet
+    
+    # verify if enough data is available for content-length, if any
+    match = re.search(r'content-length\s*:\s*(\d+)\r?\n', msg[:index].lower())
+    length = int(match.group(1)) if match else 0
+    if len(msg) < index+length:
+        logger.debug('has more content %d < %d (%d+%d)', len(msg), index+length, index, length)
+        return (None, msg, '') # pending further content.
+
+    # extract the first HTTP request, and store remaining as pending
+    data, body, msg = msg[:index], msg[index:index+length], msg[index+length:]
+    try:
+        firstline, data = data.split('\n', 1)
+        firstline = firstline.rstrip()
+        headers = mimetools.Message(StringIO(data))
+        # validate firstline and some headers
+        method, path, protocol = firstline.split(' ', 2)
+        if method != 'GET':
+            raise HTTPError('405 Method Not Allowed')
+        if protocol != "HTTP/1.1":
+            raise HTTPError('505 HTTP Version Not Supported')
+        if headers.get('Upgrade', None) != 'websocket':
+            raise HTTPError('403 Forbidden', 'missing or invalid Upgrade header')
+        if headers.get('Connection', None) != 'Upgrade':
+            raise HTTPError('400 Bad Request', 'missing or invalid Connection header')
+        if 'Sec-WebSocket-Key' not in headers:
+            raise HTTPError('400 Bad Request', 'missing Sec-WebSocket-Key header')
+        if int(headers.get('Sec-WebSocket-Version', '0')) < 13: # version too old
+            raise HTTPError('400 Bad Request', 'missing or unsupported Sec-WebSocket-Version')
+        
+        result = None # invoke app below for result if needed
+        if verify_handshake is not None and callable(verify_handshake):
+            try:
+                result = verify_handshake(userdata=userdata, path=path, headers=headers)
+            except HTTPError:
+                raise # re-raise only HTTPError, and mask all others
+            except:
+                logger.exception('exception in server app: verify_handshake')
+                raise HTTPError('500 Server Error', 'exception in server app: verify_handshake')
+        
+        # generate the response, and append result returned by onhandshake if applicable
+        key = headers['Sec-WebSocket-Key']
+        digest = base64.b64encode(hashlib.sha1(key + _magic).hexdigest().decode('hex'))
+        response = ['HTTP/1.1 101 Switching Protocols', 'Upgrade: websocket', 'Connection: Upgrade',
+                    'Sec-WebSocket-Accept: %s' % digest]
+        if result: response.extend(result)
+        response = '\r\n'.join(response) + '\r\n\r\n' # we always respond with CRLF line ending
+        
+        return (response, msg, path)
+    except HTTPError, e: # send error response
+        return (str(e), msg, '')
+        
 
 # The server function that listens on a socket and responds to websocket handshake.
 # It creates a thread that runs forever, until interrupted.
@@ -402,7 +509,9 @@ def serve_forever(hostport, **kwargs):
     server = ThreadedServer(hostport, WebSocketHandler)
 
     # basic handshake header verification - using paths, hosts and origins options
-    def onhandshake(request, path, headers):
+    def onhandshake(userdata, path, headers):
+        if headers.get('Sec-WebSocket-Version', None) != '13': # require version 13, not more.
+            raise HTTPError('400 Bad Request', 'requires WebSocket version only 13')
         if options.paths is not None and path not in options.paths:
             raise HTTPError('404 Not Found')
         if options.hosts is not None and headers.get('Host', None) not in options.hosts:
@@ -410,7 +519,7 @@ def serve_forever(hostport, **kwargs):
         if options.origins is not None and 'Origin' in headers and headers.get('Origin') not in options.origins:
             raise HTTPError('403 Forbidden', 'forbidden Origin header')
         if 'onhandshake' in kwargs:
-            kwargs['onhandshake'](request, path, headers)
+            kwargs['onhandshake'](userdata, path, headers)
     
     # setup server callbacks
     server.onhandshake = onhandshake

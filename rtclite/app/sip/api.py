@@ -14,6 +14,7 @@ from ... import multitask
 from ...std.ietf.rfc2396 import Address, URI
 from ...std.ietf.rfc3261 import Stack, Message, Header, UserAgent, Proxy, TransportInfo
 from ...std.ietf.rfc2617 import createAuthenticate
+from ...std.ietf.rfc6455 import receive_handshake, receive_server_event, HTTPError
 from ...common import getlocaladdr, multitask_Timer as Timer
 
 logger = logging.getLogger('sip.api')
@@ -147,7 +148,8 @@ class Agent(Dispatcher):
         sock = stack.sock
         while True:
             if sock.type == socket.SOCK_DGRAM:
-                data, remote = yield multitask.recvfrom(sock, maxsize)
+                try: data, remote = yield multitask.recvfrom(sock, maxsize)
+                except socket.error: logger.exception('socket.recvfrom'); break
                 logger.debug('%r=>%r on type=%r\n%s', remote, sock.getsockname(), stack.transport.type, data)
                 if data: 
                     try: stack.received(data, remote)
@@ -166,7 +168,8 @@ class Agent(Dispatcher):
         self.conn[remote] = sock
         pending = ''
         while True:
-            data = yield multitask.recv(sock, maxsize)
+            try: data = yield multitask.recv(sock, maxsize)
+            except socket.error: logger.exception('socket.recv'); break
             logger.debug('%r=>%r on type=%r\n%s', remote, sock.getsockname(), stack.transport.type, data)
             if data: 
                 pending += data
@@ -200,8 +203,10 @@ class Agent(Dispatcher):
     def _wsreceiver(self, stack, sock, remote, maxsize=16386): # handle the messages on the given TCP connection.
         handshake = False
         pending = ''
+        state = None
         while True:
-            data = yield multitask.recv(sock, maxsize)
+            try: data = yield multitask.recv(sock, maxsize)
+            except socket.error: logger.exception('socket.recv'); break
             logger.debug('%r=>%r on type=%r length %d', sock.getpeername(), sock.getsockname(), stack.transport.type, len(data))
             if data: 
                 pending += data
@@ -215,78 +220,41 @@ class Agent(Dispatcher):
                         sock.close()
                         break
                     else:
-                        msg = pending
-                        index1, index2 = msg.find('\n\n'), msg.find('\n\r\n')
-                        if index2 > 0 and index1 > 0:
-                            if index1 < index2:
-                                index = index1 + 2
-                            else: 
-                                index = index2 + 3
-                        elif index1 > 0: 
-                            index = index1 + 2
-                        elif index2 > 0:
-                            index = index2 + 3
-                        else:
-                            logger.debug('no CRLF found'); break # no header part yet, wait for more
-                        match = re.search(r'content-length\s*:\s*(\d+)\r?\n', msg[:index].lower())
-                        length = int(match.group(1)) if match else 0
-                        if len(msg) < index+length: logger.debug('has more content %d < %d (%d+%d)', len(msg), index+length, index, length); break # pending further content.
-                        total, pending = pending[:index+length], pending[index+length:]
-                        try:
-                            lines = total.split('\n')
-                            headers = dict([(h.strip().lower(), value.strip()) for h,sep,value in [line.strip().partition(':') for line in lines[1:] if line.strip()]])
-                            method, path, protocol = lines[0].split(' ')
-                            headers.update(method=method, path=path, protocol=protocol)
-                            if method != 'GET' or headers.get('upgrade', '').lower() != 'websocket' or headers.get('connection', '') != 'Upgrade' or headers.get('sec-websocket-protocol', '').lower() != 'sip':
-                                raise ValueError, 'Invalid WS request with invalid method, upgrade, connection or protocol'
-                            if int(headers.get('sec-websocket-version', '0')) < 13: # version is too old
-                                raise ValueError, 'Old or missing websocket version. Must be >= 13'
-                            stack.websocket = headers # store the handshake parameters
-                            key = headers.get('sec-websocket-key','')
-                            # key = 'dGhlIHNhbXBsZSBub25jZQ==' # used for testing, generates accept = s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
-                            accept = base64.b64encode(hashlib.sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest())
-                            response = '\r\n'.join([
-                                        'HTTP/1.1 101 Switching Protocols', 'Upgrade: websocket', 'Connection: Upgrade',
-                                        'Sec-WebSocket-Accept: %s'%(accept,), 'Sec-WebSocket-Protocol: sip']) + '\r\n\r\n'
-                            logger.debug('%r=>%r\n%s', sock.getsockname(), sock.getpeername(), response)
-                            
-                            sock.sendall(response)
+                        def verify_handshake(userdata, path, headers):
+                            if headers.get('Sec-WebSocket-Protocol', None) != 'sip':
+                                raise HTTPError('400 Bad Request', 'missing or unsupported Sec-WebSocket-Protocol, must be sip')
+                            data = dict(headers.items())
+                            data.update(method='GET', path=path, protocol='HTTP/1.1')
+                            userdata.websocket = data # store the handshake parameters
+                            return ['Sec-WebSocket-Protocol: sip']
+                        
+                        response, pending, path = receive_handshake(pending, verify_handshake=verify_handshake, userdata=stack)
+                        if response is None: break # wait for more
+                        
+                        logger.debug('%r=>%r\n%s', sock.getsockname(), sock.getpeername(), response)
+                        sock.sendall(response)
+                        if path:
                             handshake = True
                             self.conn[remote] = sock
-                        except: 
-                            logger.exception('parsing websocket request')
+                        else:
                             sock.close()
                             break
                 else:
                     # process request
-                    while pending:
-                        m = pending
-                        opcode, length = ord(m[0]) & 0x0f, ord(m[1]) & 0x7f
-                        if opcode != 0x01:
-                            logger.warning('only text opcode is supported')
-                        if length == 126:
-                            length = struct.unpack('>H', m[2:4])[0]
-                            masks = m[4:8]
-                            offset = 8
-                        elif length == 127:
-                            lengths = struct.unpack('>II', m[2:10])
-                            length = lengths[0] * 2**32 + lengths[1]
-                            masks = m[10:14]
-                            offset = 14
-                        else:
-                            masks = m[2:6]
-                            offset = 6
-                        logger.debug('offset=%r length=%r', offset, length)
-                        if len(m) < offset + length:
-                            logger.debug('incomplete message')
+                    while True:
+                        typ, value, pending, state = receive_server_event(data=pending, state=state)
+                        if typ == 'send':
+                            sock.sendall(value)
+                        elif typ == 'onmessage':
+                            logger.debug('websocket received\n%s', value)
+                            if isinstance(value, unicode): value = value.encode('utf-8')
+                            try: stack.received(value, remote)
+                            except: logger.exception('receiving')
+                        if state is None:
+                            sock.close()
                             break
-                        decoded, encoded, pending = [], m[offset:offset+length], m[offset+length:]
-                        for i, ch in enumerate(encoded):
-                            decoded.append(chr(ord(ch) ^ ord(masks[i % 4])))
-                        decoded = ''.join(decoded)
-                        logger.debug('websocket received\n%s', decoded)
-                        try: stack.received(decoded, remote)
-                        except: logger.exception('receiving')
+                        elif typ == 'notenough':
+                            break
             else: # socket closed
                 break
         try: del self.conn[remote]
