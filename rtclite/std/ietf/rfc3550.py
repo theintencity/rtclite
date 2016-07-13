@@ -435,7 +435,7 @@ class Session(object):
         
         if hasattr(self.app, 'createTimer') and callable(self.app.createTimer):
             self.timer = timer = self.app.createTimer(self) # schedule a timer to send RTCP
-            timer.start(delay*1000)
+            timer.start(delay)
         else: # ignore RTCP sending if timer is not created
             self.timer = None
             logger.debug('exception in creating the timer.')
@@ -529,7 +529,7 @@ class Session(object):
                         if self.timer: self.timer.stop()
                         self.tn = self.tc + (len(self.members)/self.pmembers) * (self.tn-self.tc)
                         self.tp = self.tc - (len(self.members)/self.pmembers) * (self.tc-self.tp)
-                        if self.timer: self.timer.start((self.tn - self.tc) * 1000)
+                        if self.timer: self.timer.start(self.tn - self.tc)
                         self.pmembers = len(self.members)
                     
         # @implements RFC3550 P31L19-P31L24
@@ -552,7 +552,7 @@ class Session(object):
             if self.tn <= self.tc:
                 self.sendBYE()
             else:
-                self.timer.start((self.tn - self.tc) * 1000)
+                self.timer.start(self.tn - self.tc)
         else: # need to send report
             delay = self.rtcpinterval()
             self.tn = self.tp + delay
@@ -565,7 +565,7 @@ class Session(object):
             else:
                 delay = self.tn - self.tc
             self.pmembers = len(self.members)
-            self.timer.start(delay*1000) # restart the timer
+            self.timer.start(delay) # restart the timer
              
     def sendBYE(self, reason=''):    
         if self.rtpsent and self.rtcpsent:

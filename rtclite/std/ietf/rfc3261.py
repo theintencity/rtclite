@@ -782,7 +782,7 @@ class Transaction(object):
         found = filter(lambda x: self.timers[x] == timer, self.timers.keys())
         if len(found):
             for f in found: del self.timers[f]
-            self.timeout(found[0], timer.delay)
+            self.timeout(found[0], timer.delay * 1000)
 
 # @implements RFC3261 P265L1-P265L40
 class Timer(object):

@@ -51,8 +51,7 @@ if __name__ == '__main__': # parse command line options, and set the high level 
     if options.verbose:
         logger.setLevel(logging.DEBUG)
         sipapi.logger.setLevel(logging.DEBUG)
-        if hasattr(rfc3261, 'logger'): rfc3261.logger.setLevel(logging.DEBUG)
-        else: rfc3261._debug = True
+        rfc3261.logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
         
