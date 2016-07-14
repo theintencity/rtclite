@@ -12,7 +12,7 @@ An examples from SER config file is at http://lists.iptel.org/pipermail/serusers
 
 import sys, logging
 from . import api as sipapi
-from ...std.ietf import rfc3261 
+from ...std.ietf import rfc3261, rfc5658 
 from ...common import ColorizingStreamHandler
 
 logger = logging.getLogger('sip.server')
@@ -52,6 +52,7 @@ if __name__ == '__main__': # parse command line options, and set the high level 
         logger.setLevel(logging.DEBUG)
         sipapi.logger.setLevel(logging.DEBUG)
         rfc3261.logger.setLevel(logging.DEBUG)
+        rfc5658.logger.setLevel(logging.DEBUG)
     else:
         logger.setLevel(logging.INFO)
         
@@ -97,7 +98,7 @@ def route(event):
             if auth == 404: return event.action.reject(404, 'Not Found')
             elif auth == 401 or auth == 0: return event.action.challenge(realm='localhost') 
             elif auth != 200: return event.action.reject(500, 'Internal Server Error in authentication')
-        if not event.agent.location.save(msg=event, uri=str(event.To.value.uri).lower()): return event.action.reject(500, 'Internal Server Error in Location Service')
+        if not event.agent.location.save(msg=event, uri=str(event.To.value.uri).lower(), setTransport=True): return event.action.reject(500, 'Internal Server Error in Location Service')
         return event.action.accept(contacts=event.agent.location.locate(str(event.To.value.uri).lower()))
     
     # whether the original request had Route header to this server?

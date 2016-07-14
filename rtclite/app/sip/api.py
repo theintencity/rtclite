@@ -12,7 +12,8 @@ import os, sys, socket, time, traceback, logging, re, base64, hashlib, struct
 from exceptions import Exception
 from ... import multitask
 from ...std.ietf.rfc2396 import Address, URI
-from ...std.ietf.rfc3261 import Stack, Message, Header, UserAgent, Proxy, TransportInfo
+from ...std.ietf.rfc3261 import Message, Header, UserAgent, TransportInfo
+from ...std.ietf.rfc5658 import Proxy, Stack, combine_stacks
 from ...std.ietf.rfc2617 import createAuthenticate
 from ...std.ietf.rfc6455 import receive_handshake, receive_server_event, send_server_event, HTTPError
 from ...common import getlocaladdr, multitask_Timer as Timer
@@ -56,14 +57,16 @@ class IncomingEvent(MessageEvent):
         response.insert(Header(createAuthenticate(realm=realm, domain=str(self.uri), stale='FALSE'), 'WWW-Authenticate'), append=True)
         self.ua.sendResponse(response)
     def proxy(self, recordRoute=False):
+        logger.debug('proxy %r to %r', self.method, self.location)
         location = self.location if isinstance(self.location, list) else [self.location]
         for c in location:
-            proxied = self.ua.createRequest(self.method, c, recordRoute=recordRoute)
+            proxied = self.ua.createRequest(self.method, self.uri if 'lr' in c.param else c, recordRoute=recordRoute)
             self.ua.sendRequest(proxied)
         if not location:
             if self.ua.request.method != 'ACK':
                 self.ua.sendResponse(480, 'Temporarily Unavailable')
     def redirect(self):
+        logger.debug('redirect %r to %r', self.method, self.location)
         location = self.location if isinstance(self.location, list) else [self.location]
         response = self.ua.createResponse(302, 'Moved Temporarily')
         for c in location: response.insert(c, append=True)
@@ -121,6 +124,7 @@ class Agent(Dispatcher):
             t.type = transport
             self.stack[transport] = s = stack(self, t)
             s.sock = sock
+        combine_stacks(self.stack.values())
         self._gens = []
     
     def __del__(self):
@@ -323,7 +327,7 @@ class Location(dict):
     '''A simple location service using in-memory dict. Subclass may override this to support databases such as MySQL.'''
     def __init__(self):
         dict.__init__(self)
-    def save(self, msg, uri, defaultExpires=3600):
+    def save(self, msg, uri, defaultExpires=3600, setTransport=False):
         '''Save the contacts from REGISTER or PUBLISH msg.'''
         expires = int(msg['Expires'].value if msg['Expires'] else defaultExpires)
         if uri in self: existing = self[uri]
@@ -333,6 +337,8 @@ class Location(dict):
                 del self[uri] # unregister by removing the contacts
         else: # handle individual contact headers in the msg
             now = time.time()
+            if setTransport:
+                transport = msg.first('Via').viaUri.param['transport']
             for c in msg.all('Contact'): # for all contacts in the new msg
                 e = now + (expires if 'expires' not in c else int(c.expires)) # expiration for this contact.
                 t = None # a NATed target to be used in locate
@@ -346,6 +352,8 @@ class Location(dict):
                     t.user = c.value.uri.user
                 else:
                     existing[:] = filter(lambda x: x[0].value.uri!=c.value.uri, existing)  # remove matching contacts
+                if setTransport and 'transport' not in c.value.uri.param:
+                    c.value.uri.param['transport'] = transport
                 existing.insert(0, (c, e, t)) # insert the new contact in the beginning
             existing[:] = filter(lambda x: x[1]>now, existing) # filter out expired contacts
             if not existing: # no more contacts

@@ -466,6 +466,18 @@ class Stack(object):
         if secure and not self.transport.secure: raise ValueError, 'Cannot find a secure transport'
         return Header('SIP/2.0/' + self.transport.type.upper() + ' ' + self.transport.host + ':' + str(self.transport.port) + ';rport', 'Via')
 
+    def isLocal(self, uri):
+        '''Check whether the given uri represents local address (host:port) of this stack?'''
+        return (self.transport.host == uri.host or uri.host in ('localhost', '127.0.0.1')) and (self.transport.port == uri.port or not uri.port and self.transport.port == 5060) # TODO: what about 5061 for sips
+    
+    def createRecordRoute(self):
+        rr = Address(str(self.uri))
+        rr.uri.param['lr'] = None
+        rr.uri.param['transport'] = self.transport.type;
+        rr.mustQuote = True
+        # TODO: take care of sips URI
+        return Header(str(rr), 'Record-Route')
+    
     def send(self, data, dest=None, transport=None):
         '''Send a data (Message) to given dest (URI or hostPort), or using the Via header of
         response message if dest is missing.'''
@@ -639,6 +651,9 @@ class Stack(object):
     def authenticate(self, ua, header): return self.app.authenticate(ua, header, self) if hasattr(self.app, 'authenticate') else False
     def createTimer(self, obj): return self.app.createTimer(obj, self)
 
+    def createBranch(self, ua, request, target):
+        return Transaction.createClient(self, ua, request, self.transport, target.hostPort)
+    
     def findDialog(self, arg):
         '''Find an existing dialog for given id (str) or received message (Message).'''
         return self.dialogs.get(isinstance(arg, Message) and Dialog.extractId(arg) or str(arg), None)
@@ -1176,7 +1191,7 @@ class UserAgent(object):
             raise ValueError, 'More than one Via header in response'
         if response.is1xx:
             if self.cancelRequest:
-                cancel = Transaction.createClient(self.stack, self, self.cancelRequest, transaction.transport, transaction.remote)
+                cancel = Transaction.createClient(transaction.stack, self, self.cancelRequest, transaction.transport, transaction.remote)
                 self.cancelRequest = None
             else:
                 self.stack.receivedResponse(self, response)
@@ -1274,7 +1289,7 @@ class UserAgent(object):
         self.cancelRequest = self.transaction.createCancel()
         if self.transaction.state != 'trying' and self.transaction.state != 'calling':
             if self.transaction.state == 'proceeding':
-                transaction = Transaction.createClient(self.stack, self, self.cancelRequest, self.transaction.transport, self.transaction.remote)
+                transaction = Transaction.createClient(self.transaction.stack, self, self.cancelRequest, self.transaction.transport, self.transaction.remote)
             self.cancelRequest = None
         # else don't send until 1xx is received
 
@@ -1330,7 +1345,7 @@ class UserAgent(object):
             request.CSeq = Header(str(self.localSeq) + ' ' + request.method, 'CSeq')
             request.first('Via').branch = Transaction.createBranch(request, False)
             self.request = request
-            self.transaction = Transaction.createClient(self.stack, self, self.request, self.transaction.transport, self.transaction.remote)
+            self.transaction = Transaction.createClient(self.transaction.stack, self, self.request, self.transaction.transport, self.transaction.remote)
             return True
         else:
             return False;
@@ -1538,19 +1553,18 @@ class Proxy(UserAgent):
             # TODO: the To tag must be same in the two responses
 
         # 16.4 route information processing
-        if not request.uri.user and self.isLocal(request.uri) and 'lr' in request.uri.param and request.Route:
+        if not request.uri.user and self.stack.isLocal(request.uri) and 'lr' in request.uri.param and request.Route:
             lastRoute = request.all('Route')[-1]; request.delete('Route', position=-1)
             request.uri = lastRoute.value.uri
         #if 'maddr' in request.uri.param: TODO: handle this case
-        if request.Route and self.isLocal(request.first('Route').value.uri):
+        if request.Route and self.stack.isLocal(request.first('Route').value.uri):
             request.delete('Route', position=0) # delete first Route header
             request.had_lr = True               # mark it so that a proxy can decide whether to open relay or not
 
         self.stack.receivedRequest(self, request)
-
+    
     def isLocal(self, uri):
-        '''Check whether the give uri represents local address (host:port) ?'''
-        return (self.stack.transport.host == uri.host or uri.host in ('localhost', '127.0.0.1')) and (self.stack.transport.port == uri.port or not uri.port and self.stack.transport.port == 5060) # TODO: what about 5061 for sips
+        return self.stack.isLocal(uri)
 
     def sendResponse(self, response, responsetext=None, content=None, contentType=None, createDialog=True):
         '''Invoke the base class to send a response to original UAS. Create a transaction beforehand if needed.'''
@@ -1571,11 +1585,7 @@ class Proxy(UserAgent):
 
         request['Max-Forwards'] = Header(str(int(request.first('Max-Forwards').value)-1) if request['Max-Forwards'] else '70', 'Max-Forwards')
         if recordRoute:
-            rr = Address(str(self.stack.uri))
-            rr.uri.param['lr'] = None
-            rr.mustQuote = True
-            # TODO: take care of sips URI
-            request.insert(Header(str(rr), 'Record-Route'))
+            request.insert(self.stack.createRecordRoute())
         for h in headers: request.insert(h, append=True) # insert additional headers
         for h in reversed(route): request.insert(h, append=False) # insert the routes
         Via = self.stack.createVia(self.secure)
@@ -1622,19 +1632,19 @@ class Proxy(UserAgent):
         target = branch.remoteCandidates.pop(0)
         if request.method != 'ACK':
             # start a client transaction to send the request
-            branch.transaction = Transaction.createClient(self.stack, self, request, self.stack.transport, target.hostPort)
+            branch.transaction = self.stack.createBranch(self, request, target)
             branch.request = request
             self.branches.append(branch)
         else: # directly send ACK on transport layer
-            self.stack.send(request, target.hostPort)
-
+            self.stack.send(request, target)
+    
     def retryNextCandidate(self, branch):
         '''Retry next DNS resolved address.'''
         if not branch.remoteCandidates or len(branch.remoteCandidates) == 0:
             raise ValueError, 'No more DNS resolved address to try'
         target = URI(branch.remoteCandiates.pop(0))
         branch.request.first('Via').branch += 'A' # so that we create a different new transaction
-        branch.transaction = Transaction.createClient(self.stack, self, branch.request, self.stack.transport, target.hostPort)
+        branch.transaction = self.stack.createBranch(self, branch.request, target)
 
     def getBranch(self, transaction):
         for branch in self.branches:
@@ -1648,7 +1658,7 @@ class Proxy(UserAgent):
             logger.debug('Invalid transaction received %r', transaction)
             return
         if response.is1xx and branch.cancelRequest:
-            cancel = Transaction.createClient(self.stack, self, branch.cancelRequest, transaction.transport, transaction.remote)
+            cancel = Transaction.createClient(transaction.stack, self, branch.cancelRequest, transaction.transport, transaction.remote)
             branch.cancelRequest = None
         else:
             if response.isfinal:
@@ -1677,7 +1687,7 @@ class Proxy(UserAgent):
             branch.cancelRequest = branch.transaction.createCancel()
             if branch.transaction.state != 'trying' and branch.transaction.state != 'calling':
                 if branch.transaction.state == 'proceeding':
-                    transaction = Transaction.createClient(self.stack, self, branch.cancelRequest, branch.transaction.transport, branch.transaction.remote)
+                    transaction = Transaction.createClient(branch.transaction.stack, self, branch.cancelRequest, branch.transaction.transport, branch.transaction.remote)
                 branch.cancelRequest = None
             # else don't send until 1xx is received
 
