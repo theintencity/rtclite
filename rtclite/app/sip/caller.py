@@ -141,12 +141,20 @@ from .client import MediaSession
 from ...std.ietf import rfc3261, rfc2396, rfc3550, rfc4566, rfc2833
 from ...common import repeated_warning, ColorizingStreamHandler, getlocaladdr, setlocaladdr, gevent_Timer as Timer
 
-try: import audiodev, audiospeex, audiotts, audioop
-except ImportError: audiodev = audiospeex = audiotts = audioop = None
+try: import audiodev
+except ImportError: audiodev = None
+
+try: import audiospeex
+except ImportError: audiospeex = None
+
+try: import audiotts
+except ImportError: audiotts = None
+
+try: import audioop
+except ImportError: audioop = None
 
 try: import speech_recognition as sr
 except ImportError: sr = None
-
 
 logger = logging.getLogger('caller')
 
