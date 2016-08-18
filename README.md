@@ -193,3 +193,11 @@ installable distribution.
 make test
 make doc
 ```
+## License and contributions
+
+Please see [LICENSE](/LICENSE) for details on software license and copyright. 
+In particular, this software is available as either LGPL or alternative license. 
+Any other contributors, who submit code or patches to this project
+automatically transfer the copyright of their work to the original author. 
+This allows the original author to create derivative work or issue alternative 
+license outside of LGPL.
