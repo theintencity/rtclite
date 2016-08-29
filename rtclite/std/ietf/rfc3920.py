@@ -58,7 +58,8 @@ class Stanza(XML):
     and from base class tag, xmlns, attrs, children, elems, cdata, and various forms of access using attribute, container, opertors.'''
     def __init__(self, value=None, **kwargs):
         '''Supply the attributes such as tag, to, frm, type, xmlns, timestamp, etc., as named arguments.'''
-        XML.__init__(self, value=value); 
+        if value and isinstance(value, XML): value = str(value)
+        XML.__init__(self, value=value);
         if not value and 'tag' not in kwargs: self.tag = 'stanza'
         for k,v in kwargs.iteritems(): self.__setattr__(k, str(v)) #should include tag, to, frm, type, timestamp, xmlns
                 
