@@ -88,7 +88,12 @@ $ git clone https://github.com/theintencity/py-audio.git
 ```
 Also install the gevent dependency.
 ```
-$ pip install gevent
+$ sudo pip install gevent
+```
+If you have problem installing gevent due to the greenlet dependency, you may want to install
+greenlet explicitly as follows, before installing gevent.
+```
+$ sudo easy_install greenlet==0.4.10
 ```
 On OS X, you can use the pre-built binaries of the voice processing modules as shown below. 
 For Linux, you will need to compile the software to create those binary modules. Make sure that 
