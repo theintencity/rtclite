@@ -51,8 +51,8 @@ borrowed from the text in the specification.
 Alternatively, click on individual modules below to view that annotated code and its Python source lines of code (SLoC). The SLoC also shows the concise nature of this Python implementation of various protocols and applications. 
 
 | Module | Package or Description | SLoC |
-|:------|:------|-----:|
-|| package: rtclite.std.ietf ||
+| :------ | :------ | -----: |
+| | package: rtclite.std.ietf | |
 |[rfc1035](http://kundansingh.com/p/rtclite/std/ietf/rfc1035.py.html)| DNS lookup for any record type |1125|
 |[rfc2198](http://kundansingh.com/p/rtclite/std/ietf/rfc2198.py.html)| RTP payload type for redundant audio data |51|
 |[rfc2396](http://kundansingh.com/p/rtclite/std/ietf/rfc2396.py.html)| Various forms of addresses such as URI or SIP address |177|
