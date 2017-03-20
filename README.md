@@ -52,7 +52,7 @@ Alternatively, click on individual modules below to view that annotated code and
 
 | Module | Package or Description | SLoC |
 | :------ | :------ | -----: |
-| | package: rtclite.std.ietf | |
+| | package: `rtclite.std.ietf` | |
 |[rfc1035](http://kundansingh.com/p/rtclite/std/ietf/rfc1035.py.html)| DNS lookup for any record type |1125|
 |[rfc2198](http://kundansingh.com/p/rtclite/std/ietf/rfc2198.py.html)| RTP payload type for redundant audio data |51|
 |[rfc2396](http://kundansingh.com/p/rtclite/std/ietf/rfc2396.py.html)| Various forms of addresses such as URI or SIP address |177|
@@ -71,31 +71,31 @@ Alternatively, click on individual modules below to view that annotated code and
 |[rfc6455](http://kundansingh.com/p/rtclite/std/ietf/rfc6455.py.html)| WebSocket protocol - client and server |565|
 |[rfc7064](http://kundansingh.com/p/rtclite/std/ietf/rfc7064.py.html)| URI scheme for STUN, patch rfc2396 |28|
 |[rfc7065](http://kundansingh.com/p/rtclite/std/ietf/rfc7065.py.html)| URI scheme for TURN, patch rfc2396 |41|
-|| package: rtclite.std.itu_t ||
+| | package: `rtclite.std.itu_t` | |
 |[t140](http://kundansingh.com/p/rtclite/std/itu_t/t140.py.html)| real-time text (RTT) payload in RTP |13|
-|| package: rtclite.std.w3c ||
+| | package: `rtclite.std.w3c` | |
 |[simplexml](http://kundansingh.com/p/rtclite/std/w3c/simplexml.py.html)| Simple XML DOM with Pythonic convenient methods and operators for XML and XMLList |363|
-|| package: rtclite.app.sip ||
+| | package: `rtclite.app.sip` | |
 |[client](http://kundansingh.com/p/rtclite/app/sip/client.py.html)| SIP user agent library for registration, call, IM, conferences |1258|
 |[server](http://kundansingh.com/p/rtclite/app/sip/server.py.html)| Very simple SIP registration, proxy server, including WebSocket  |100|
 |[caller](http://kundansingh.com/p/rtclite/app/sip/caller.py.html)| **command line SIP caller** and call listener with voice, TTS, ASR, DTMF |729|
 |[api](http://kundansingh.com/p/rtclite/app/sip/api.py.html)| SIP API for use in programmable servers and clients |371|
 |[p2p](http://kundansingh.com/p/rtclite/app/sip/p2p.py.html)| One way to implement P2P-SIP, not based on the IETF standard |315|
-|| package: rtclite.app.net.p2p ||
+| | package: `rtclite.app.net.p2p` | |
 |[dht](http://kundansingh.com/p/rtclite/app/net/p2p/dht.py.html)| Distributed Hash Table (DHT) inspired by BambooDHT and OpenDHT |1712|
 |[dhtgui](http://kundansingh.com/p/rtclite/app/net/p2p/dhtgui.py.html)| GUI to see P2P network in action |356|
 |[opendht](http://kundansingh.com/p/rtclite/app/net/p2p/opendht.py.html)| (defunct) Interface to connect to OpenDHT |63|
 |[pipe](http://kundansingh.com/p/rtclite/app/net/p2p/pipe.py.html)| P2P pipe abstraction |590|
-|| package: rtclite.app.sec ||
+| | package: `rtclite.app.sec` | |
 |[crypto](http://kundansingh.com/p/rtclite/app/sec/crypto.py.html)| Crypto library wrapper, e.g., PKI, ASN1, ARC, etc. |251|
 |[dummycrypto](http://kundansingh.com/p/rtclite/app/sec/dummycrypto.py.html)| Stub for crypto module |24|
-|| package: rtclite.app.web.rest ||
+| | package: `rtclite.app.web.rest` | |
 |[base](http://kundansingh.com/p/rtclite/app/web/rest/base.py.html)| Building blocks for creating REST APIs |196|
 |[data](http://kundansingh.com/p/rtclite/app/web/rest/data.py.html)| Expose structured data as REST resources |152|
 |[files](http://kundansingh.com/p/rtclite/app/web/rest/files.py.html)| Expose local file structure as REST resources |94|
-|| package: rtclite.app.web.rtc ||
+| | package: `rtclite.app.web.rtc` | |
 |[notify](http://kundansingh.com/p/rtclite/app/web/rtc/notify.py.html)| WebRTC notification server for signaling over WebSocket |198|
-|| package: rtclite.vnd.adobe ||
+| | package: `rtclite.vnd.adobe` | |
 |[rtmp](http://kundansingh.com/p/rtclite/vnd/adobe/rtmp.py.html)| **Real Time Messaging Protocol (RTMP)** parsing, formatting, server, and FLV |1068|
 |[rtmpclient](http://kundansingh.com/p/rtclite/vnd/adobe/rtmpclient.py.html)| command line RTMP client |345|
 |[rtmpt](http://kundansingh.com/p/rtclite/vnd/adobe/rtmpt.py.html)| RTMP tunneling |165|
@@ -103,9 +103,9 @@ Alternatively, click on individual modules below to view that annotated code and
 |[aes](http://kundansingh.com/p/rtclite/vnd/adobe/aes.py.html)| Pure python based AES, used only when PyOpenSSL is not found |179|
 |[amf](http://kundansingh.com/p/rtclite/vnd/adobe/amf.py.html)| Action Message Format (AMF) 0 and 3 |367|
 |[rtmfp](http://kundansingh.com/p/rtclite/vnd/adobe/rtmfp.py.html)| Real-Time Media Flow Protocol (RTMFP) parsing and formatting |2095|
-|| package: rtclite.vnd.google ||
+| | package: `rtclite.vnd.google` | |
 |[chat](http://kundansingh.com/p/rtclite/vnd/google/chat.py.html)| **Send and receive Google Chat messages** over XMPP |60|
-|| package: rtclite ||
+| | package: `rtclite` | |
 |[common](http://kundansingh.com/p/rtclite/common.py.html)| Common utility methods and classes |410|
 |[multitask](http://kundansingh.com/p/rtclite/multitask.py.html)| Co-operative multitasking |469|
 
