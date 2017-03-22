@@ -19,7 +19,6 @@ Features:
 Please visit rest.md for description and how to get started.
 '''
 
-from wsgiref.util import setup_testing_defaults
 from xml.dom import minidom
 import os, re, sys, sqlite3, Cookie, base64, hashlib, time, traceback, json, logging
 
@@ -57,7 +56,6 @@ def router(routes):
     if isinstance(routes, dict) or hasattr(routes, 'items'): routes = routes.iteritems()
     
     def handler(env, start_response):
-        setup_testing_defaults(env)
         if 'wsgiorg.routing_args' not in env: env['wsgiorg.routing_args'] = dict()
         env['COOKIE'] = Cookie.SimpleCookie()
         if 'HTTP_COOKIE' in env: env['COOKIE'].load(env['HTTP_COOKIE'])
@@ -96,11 +94,22 @@ def router(routes):
                     if 'HTTP_COOKIE' in env: orig.load(env['HTTP_COOKIE'])
                     map(lambda x: cookie.__delitem__(x), [x for x in orig if x in cookie and str(orig[x]) == str(cookie[x])])
                     if len(cookie): headers.extend([(x[0], x[1].strip()) for x in [str(y).split(':', 1) for y in cookie.itervalues()]])
+                    if 'HTTP_ORIGIN' in env:
+                        headers += [('Access-Control-Allow-Origin', env['HTTP_ORIGIN']), ('Access-Control-Allow-Credentials', 'true')]
+
                     start_response(env.get('RESPONSE_STATUS', '200 OK'), headers)
                     if response: logger.debug('%r\n%s', headers, str(response)[:256])
                     return response
 
-        start_response('404 Not Found', [('Content-Type', 'text/plain')])
+        headers = [('Content-Type', 'text/plain')]
+        if 'HTTP_ORIGIN' in env:
+            headers += [('Access-Control-Allow-Origin', env['HTTP_ORIGIN']), ('Access-Control-Allow-Credentials', 'true')]
+        if env['REQUEST_METHOD'] == 'OPTIONS':
+            # headers += [('Access-Control-Allow-Methods', env['HTTP_ACCESS_CONTROL_REQUEST_METHOD']), ('Access-Control-Allow-Headers', env['HTTP_ACCESS_CONTROL_REQUEST_HEADERS'])]
+            headers += [('Access-Control-Allow-Methods', 'GET, PUT, POST, DELETE'), ('Access-Control-Allow-Headers', 'content-type, authorization')]
+            start_response('200 OK', headers)
+            return []
+        start_response('404 Not Found', headers)
         return ['Use one of these URL forms\n  ' + '\n  '.join(str(x[0]) for x in routes)]
     
     return handler
@@ -204,9 +213,9 @@ class Request(dict):
         self.update(env.iteritems())
         self.__dict__.update(env.get('wsgiorg.routing_args', {}))
         self.start_response = start_response
-    def response(self, value, type=None):
+    def response(self, value, type=None, status='200 OK'):
         type, result = represent(value, type if type is not None else self.get('ACCEPT', defaultType))
-        self.start_response('200 OK', [('Content-Type', type)])
+        self.start_response(status, [('Content-Type', type)])
         return result
 
 class Status(Exception):
@@ -251,7 +260,7 @@ def resource(func):
             if env['CONTENT_TYPE'].lower() == 'application/json' and env['BODY']: 
                 try: env['BODY'] = json.loads(env['BODY'])
                 except: raise Status, '400 Invalid JSON content'
-            result = method_funcs[env['REQUEST_METHOD']](req, env['BODY'])
+            result = method_funcs[env['REQUEST_METHOD']](req, entity=env['BODY'])
         return [result] if result is not None else []
     return handler
 
@@ -326,9 +335,9 @@ class Model(dict):
         '''Construct the model using optional sqlite3 connection. If missing, use a in-memory database.'''
         if conn is None:
             self.conn = sqlite3.connect(':memory:')
-            self.conn.isolation_level = None
         else:
             self.conn = conn
+        self.conn.isolation_level = None
 
     def close(self):
         '''Close the connection with the database.'''
@@ -351,14 +360,17 @@ class Model(dict):
         "int" or other variation for auto-increment of the id to work.
         '''
         # list of tuples (table-name, [list of attributes])
-        tables = [(x[0], [y.strip() for y in x[1:]]) for x in (z.split('\n') for z in re.split(r'\r?\n\r?\n', re.sub(r'[ \t]{2,}', ' ', '\n'.join(map(str.rstrip, data_model.strip().split('\n'))))))]
+        tables = [(x[0], [y.strip() for y in x[1:]]) for x in (z.split('\n') for z in re.split(r'\r?\n\r?\n', re.sub(r'[ \t]{2,}', ' ', '\n'.join(filter(lambda x: not x.lstrip() or x.lstrip()[0] not in ('#', '@'), map(str.rstrip, data_model.strip().split('\n')))))))]
         if createTable:
-            map(lambda t: self.sql("CREATE TABLE %s (%s)"%(t[0], ', '.join(t[1]))), tables)
+            for t in tables:
+                try: self.sql("CREATE TABLE IF NOT EXISTS %s (%s)"%(t[0], ', '.join(t[1])))
+                except: logger.debug('create table failed, probably already exists')
         if createType:
             for name, attrs in tables:
                 class klass(object):
                     _defn_ = [(y, z) for y, z in (x.split(' ', 1) for x in attrs) if y.lower() not in ('foreign', 'primary', 'key')]
-                    __doc__ = name + '\n  ' + '\n  '.join(['%s\t%s'%(x, y) for x, y in _defn_])  
+                    # __doc__ = name + '\n  ' + '\n  '.join(['%s\t%s'%(x, y) for x, y in _defn_])
+                    __doc__ = name + '\n  ' + '\n  '.join([x.strip() for x in attrs])
                     _table_, _attrs_, _defn_ = name, [x for x, y in _defn_], [y for x, y in _defn_]
                     def __init__(self, *args, **kwargs):
                         keys = self.__class__._attrs_
@@ -369,6 +381,8 @@ class Model(dict):
                         return ', '.join(['%r=%r'%(x, self.__dict__[x]) for x in self.__class__._attrs_ if x in self.__dict__])
                     def _list_(self):
                         return (self.__class__._table_, tuple((k, self.__dict__[k]) for k in self.__class__._attrs_ if k in self.__dict__))
+                    def as_dict(self, exclude=None):
+                        return dict([(k, self.__dict__[k]) for k in self.__class__._attrs_ if k in self.__dict__ and (exclude is None or k not in exclude)])
                 self[name] = klass
         
 #------------------------------------------------------------------------------
@@ -402,12 +416,26 @@ class AuthModel(Model):
     def valid(self, user_id, token):
         hash, tm = token[:-10], token[-10:]
         return hashlib.md5(self.mypass + str(user_id) + tm).hexdigest() == hash
+
+    def registered(self, email, realm):
+        found = self.sql1('SELECT id, hash FROM user_login WHERE email=? AND realm=?', (email, realm))
+        return bool(found)
+    
+    def __len__(self):
+        found = self.sql1('SELECT count(*) FROM user_login')
+        return found and int(found[0])
     
     def register(self, email, realm, password='', hash=None):
         if not hash: hash = self.hash(email, realm, password)
-        self.sql('INSERT INTO user_login VALUES (NULL, ?, ?, ?, NULL)', (email, realm, hash))
-        user_id = self.sql1('SELECT last_insert_rowid()')[0]
-        self.sql('UPDATE user_login SET token=? WHERE id=?', (self.token(user_id), user_id))
+        found = self.sql1('SELECT id, hash FROM user_login WHERE email=? AND realm=?', (email, realm))
+        if not found:
+            self.sql('INSERT INTO user_login VALUES (NULL, ?, ?, ?, NULL)', (email, realm, hash))
+            user_id = self.sql1('SELECT last_insert_rowid()')[0]
+            self.sql('UPDATE user_login SET token=? WHERE id=?', (self.token(user_id), user_id))
+        else:
+            user_id = found[0]
+            if found[1] != hash:
+                self.sql('UPDATE user_login SET hash=? WHERE id=?', (hash, user_id))
         return user_id
 
     def login(self, request):
@@ -476,7 +504,10 @@ class AuthModel(Model):
 
     def logout(self, request):
         if 'COOKIE' in request and 'user_id' in request['COOKIE'] and 'token' in request['COOKIE']:
-            user_id, token, request['COOKIE']['token']['expires'] = request['COOKIE']['user_id'].value, request['COOKIE']['token'].value, 0
+            user_id, token = request['COOKIE']['user_id'].value, request['COOKIE']['token'].value
+            request['COOKIE']['token']['expires'] = request['COOKIE']['user_id']['expires'] = 0
+            request['COOKIE']['token']['path'] = request['COOKIE']['user_id']['path'] = '/'
+
             if user_id != 0:
                 self.sql('UPDATE user_login SET token=NULL WHERE id=? AND token=?', (user_id, token))
 

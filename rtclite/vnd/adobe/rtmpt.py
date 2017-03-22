@@ -9,7 +9,7 @@ This listens on default TCP port 1935. The -d option enabled debug trace during 
 Now start this tunnel in debug mode listening on port 8080 (RTMPT/HTTP) and forwarding to localhost:1935 (RTMP).
   $ python -m rtclite.vnd.adobe.rtmpt -l 0.0.0.0:8080 -t 127.0.0.1:1935 -d
 By default rtmpt.py listens on port 8080 on RTMPT and forward to localhost:1935 on RTMP, so the -l and -t options above are unnecessary.
-Now point your browser to http://myprojectguide.org/p/flash-videoio/test.html for the Flash videoIO test page.
+Now point your browser to http://myprojectguide.kundansingh.com/p/flash-videoio/test.html for the Flash videoIO test page.
 Set the "src" property to rtmpt://localhost:8080/myapp?publish=live to start publishing using RTMPT.
 To play the stream, open another browser instance or tab to the same test page, and set the "src"
 property to rtmpt://localhost:8080/myapp?play=live
