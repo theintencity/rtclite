@@ -150,7 +150,9 @@ except ImportError: sr = None
 
 logger = logging.getLogger('caller')
 
-default_ext_ip, default_domain, default_login = getlocaladdr()[0], socket.gethostname(), os.getlogin()
+default_ext_ip, default_domain = getlocaladdr()[0], socket.gethostname()
+try: default_login = os.getlogin()
+except: default_login = 'caller'
 
 def default_options():
     class Options(object): pass
