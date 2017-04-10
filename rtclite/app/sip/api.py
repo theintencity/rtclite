@@ -340,6 +340,8 @@ class Location(dict):
             if setTransport:
                 transport = msg.first('Via').viaUri.param['transport']
             for c in msg.all('Contact'): # for all contacts in the new msg
+                if setTransport and 'transport' not in c.value.uri.param:
+                    c.value.uri.param['transport'] = transport
                 e = now + (expires if 'expires' not in c else int(c.expires)) # expiration for this contact.
                 t = None # a NATed target to be used in locate
                 if c['+sip.instance'] and c['reg-id']:
@@ -352,8 +354,6 @@ class Location(dict):
                     t.user = c.value.uri.user
                 else:
                     existing[:] = filter(lambda x: x[0].value.uri!=c.value.uri, existing)  # remove matching contacts
-                if setTransport and 'transport' not in c.value.uri.param:
-                    c.value.uri.param['transport'] = transport
                 existing.insert(0, (c, e, t)) # insert the new contact in the beginning
             existing[:] = filter(lambda x: x[1]>now, existing) # filter out expired contacts
             if not existing: # no more contacts
