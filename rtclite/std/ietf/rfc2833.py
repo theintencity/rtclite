@@ -38,6 +38,10 @@ class DTMF(object):
     def __repr__(self):
         return struct.pack('!BBH', self.event, (self.E and 0x80 or 0x00) | (self.volume & 0x3f), self.duration)
     
+    @property
+    def key(self):
+        return '0123456789*#ABCD'[self.event] if 0 <= self.event < 16 else ''
+    
     @staticmethod
     def mapkey(key):
         '''Convert a key to an event.'''
