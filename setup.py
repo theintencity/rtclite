@@ -43,7 +43,7 @@ def invoke_setup(data_files=None):
               url="https://github.com/theintencity/rtclite", license="LICENSE",
               long_description=open("README.md").read(),
               packages=packages, package_data={"std": ["specs/*"]},
-              python_requires=">=3.3"
+              python_requires=">=3.3",
               data_files=data_files)
     finally:
         if data_files_file_created:

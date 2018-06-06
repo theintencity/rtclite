@@ -2,6 +2,12 @@
 test:
 	@for x in `find rtclite | grep \.py$$ | grep -v __init__\.py | sed -e 's/\\//\\./g' | sed -e 's/\\.py$$//g'`; do echo $$x; python -m $$x --test; done
 
+develop:
+	pip3 install -e .
+
+install:
+	pip3 install .
+
 doc:
 	@python htmlify.py
 
