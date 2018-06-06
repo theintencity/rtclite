@@ -3,8 +3,8 @@
 '''
 REST + Python + JSON + XML + SQLite + authentication.
 
-This light-weight module allows quick prototyping of web services using the RESTful architecture and allows easy 
-integration with sqlite3 database, and JSON and XML representation format. The approach is to provide all the 
+This light-weight module allows quick prototyping of web services using the RESTful architecture and allows easy
+integration with sqlite3 database, and JSON and XML representation format. The approach is to provide all the
 appropriate tools which you can use to build your own application, instead of providing a intrusive framework.
 
 Features:
@@ -36,13 +36,13 @@ def router(routes):
     request method and URL pattern. If a valid route is matched, request transformation is applied. If an application
     is specified for a route, then the (wsgiref) application is invoked and the response is returned. This is used
     together with wsgiref.make_server to launch a RESTful service.
-    
-    Your can use the routes to do several things: identify the response type (JSON, XML) from the URL, identify 
+
+    Your can use the routes to do several things: identify the response type (JSON, XML) from the URL, identify
     some parts in the URL as variables available to your application handler, modify some HTTP header or message body
     based on the URL, convert a GET or POST URL from the browser with URL suffix of /put or /delete to PUT or DELETE
     URL to handle these commands from the browser, etc. For more details see the project web page.
-    
-    >>> def files_handler(env, start_response): 
+
+    >>> def files_handler(env, start_response):
     ...    return '<files><type>' + env['ACCEPT'] + '</type><file>somefile.txt</file></files>'
     >>> routes = [
     ...  (r'GET,PUT,POST /xml/(?P<path>.*)$', 'GET,PUT,POST /%(path)s', 'ACCEPT=text/xml'),
@@ -50,16 +50,16 @@ def router(routes):
     >>> r = router(routes)   # create the router using these routes
     >>> # and test using the following code
     >>> env, start_response = {'REQUEST_METHOD': 'GET', 'PATH_INFO': '/xml/files', 'SCRIPT_NAME': '', 'QUERY_STRING': ''}, lambda x,y: (x, y)
-    >>> print r(env, start_response)
+    >>> print(r(env, start_response))
     <files><type>text/xml</type><file>somefile.txt</file></files>
     '''
     if isinstance(routes, dict) or hasattr(routes, 'items'): routes = iter(routes.items())
-    
+
     def handler(env, start_response):
         if 'wsgiorg.routing_args' not in env: env['wsgiorg.routing_args'] = dict()
         env['COOKIE'] = http.cookies.SimpleCookie()
         if 'HTTP_COOKIE' in env: env['COOKIE'].load(env['HTTP_COOKIE'])
-        
+
         for route in routes:
             method, pattern = route[0].split(' ', 1)
             methods = method.split(',')
@@ -68,7 +68,7 @@ def router(routes):
             match = re.match(pattern, path)
             if match:
                 app = None
-                if callable(route[-1]): 
+                if callable(route[-1]):
                     route, app = route[:-1], route[-1] # found the app
                 if len(route) > 1:
                     new_methods, path = route[1].split(' ', 1)
@@ -77,7 +77,7 @@ def router(routes):
                     for name, value in [x.split('=', 1) for x in route[2:]]:
                         env[name] = value % match.groupdict()
                 env['wsgiorg.routing_args'].update(match.groupdict())
-                
+
                 if app is not None:
                     matching = match.group(0)
                     env['PATH_INFO'], env['SCRIPT_NAME'] = env['PATH_INFO'][len(matching):], env['SCRIPT_NAME'] + env['PATH_INFO'][:len(matching)]
@@ -111,7 +111,7 @@ def router(routes):
             return []
         start_response('404 Not Found', headers)
         return ['Use one of these URL forms\n  ' + '\n  '.join(str(x[0]) for x in routes)]
-    
+
     return handler
 
 #------------------------------------------------------------------------------
@@ -119,13 +119,13 @@ def router(routes):
 #------------------------------------------------------------------------------
 
 def tojson(value):
-    '''The function converts the supplied value to JSON representation. It assumes the unified list format of value. 
-    Typically you just call represent(value, type=request['ACCEPT']) instead of manually invoking this method. 
+    '''The function converts the supplied value to JSON representation. It assumes the unified list format of value.
+    Typically you just call represent(value, type=request['ACCEPT']) instead of manually invoking this method.
     To be consistent with str(obj) function which uses obj.__str__() method if available, tojson() uses obj._json_()
     method if available on value. Otherwise it checks obj._list_() method if available to get the unified list format.
-    Otherwise it assumes that the value is in unified list format. The _json_ and _list_ semantics allow you to 
+    Otherwise it assumes that the value is in unified list format. The _json_ and _list_ semantics allow you to
     customize the JSON representation of your object, if needed.
-    
+
     >>> value = ('file', (('name', 'myfile.txt'), ('acl', [('allow', 'kundan'), ('allow', 'admin')])))
     >>> tojson(value)
     '{"file": {"name": "myfile.txt", "acl": [{"allow": "kundan"}, {"allow": "admin"}]}}'
@@ -144,7 +144,7 @@ def tojson(value):
             return dict([(x[0], list2dict(x[1])) for x in value])
         elif isinstance(value, list):
             return [list2dict(x) for x in value]
-        else: 
+        else:
             return value
     return json.dumps(list2dict(value))
 
@@ -153,9 +153,9 @@ def xml(value):
     Typically you just call represent(value, type=request['ACCEPT']) instead of manually invoking this method.
     To be consistent with str(obj) function which uses obj.__str__() method if available, xml() uses obj._xml_()
     method if available on value. Otherwise it checks obj._list_() method if available to get the unified list format.
-    Otherwise it assumes that the value is in unified list format. The _xml_ and _list_ semantics allow you to 
+    Otherwise it assumes that the value is in unified list format. The _xml_ and _list_ semantics allow you to
     customize the XML representation of your object, if needed.
-    
+
     >>> value = ('file', (('name', 'myfile.txt'), ('acl', [('allow', 'kundan'), ('allow', 'admin')])))
     >>> xml(value)
     '<file><name>myfile.txt</name><acl><allow>kundan</allow><allow>admin</allow></acl></file>'
@@ -169,7 +169,7 @@ def xml(value):
         return ''.join(xml(x) for x in value)
     else:
         return str(value) if value is not None else None
-        
+
 def prettyxml(value):
     '''This function is similar to xml except that it invokes minidom's toprettyxml() function. Note that due to the
     addition of spaces even in text nodes of prettyxml result, you cannot use this reliably for structured data
@@ -179,13 +179,13 @@ def prettyxml(value):
 
 def represent(value, type='*/*'):
     '''You can use this method to convert a unified value to JSON, XML or text based on the type. The JSON representation
-    is preferred if type is default, otherwise the type values of "application/json", "text/xml" and 
-    "text/plain" map to tojson, xml and str functions, respectively. If you would like to customize the representation of 
-    your object, you can define _json_(), _xml_() and/or __str__() methods on your object. Note that _json_ and _xml_ 
-    fall back to _list_ if available for getting the unified list representation, and __str__ falls back to __repr__ if 
+    is preferred if type is default, otherwise the type values of "application/json", "text/xml" and
+    "text/plain" map to tojson, xml and str functions, respectively. If you would like to customize the representation of
+    your object, you can define _json_(), _xml_() and/or __str__() methods on your object. Note that _json_ and _xml_
+    fall back to _list_ if available for getting the unified list representation, and __str__ falls back to __repr__ if
     available. The return value is a tuple containing type and value.
-    
-    >>> class user: 
+
+    >>> class user:
     ...    def __init__(self, name): self.name = name
     ...    def _list_(self): return  ('allow', self.name)
     >>> u1, u2 = user('kundan'), user('admin')
@@ -219,10 +219,10 @@ class Request(dict):
         return result
 
 class Status(Exception):
-    '''The exception object that is used to throw HTTP response exception, e.g., raise Status, '404 Not Found'. 
+    '''The exception object that is used to throw HTTP response exception, e.g., raise Status, '404 Not Found'.
     The resource definition can throw this exception.
     '''
-           
+
 def resource(func):
     '''A decorator to convert a function with nested function GET, PUT, POST and/or DELETE to a resource. The resource
     object allows you to write applications in high-level semantics and translate it to wsgiref compatible handler that
@@ -230,7 +230,7 @@ def resource(func):
     take additional argument (first is request of type Request, and second is) entity extracted from message body.
     Note that the function definition that is made as a resource, must have a "return locals()" at the end so that all
     the methods GET, PUT, POST and/or DELETE are returned when function is called with no arguments.
-    
+
     >>> @resource
     ... def files():
     ...    def GET(request):
@@ -240,9 +240,9 @@ def resource(func):
     ...    return locals()
     >>> # test using the following code
     >>> env, start_response = {'REQUEST_METHOD': 'GET', 'PATH_INFO': '/xml/files', 'SCRIPT_NAME': '', 'QUERY_STRING': ''}, lambda x,y: (x, y)
-    >>> print files(env, start_response)
+    >>> print(files(env, start_response))
     ['<files><file>myfile.txt</file></files>']
-    ''' 
+    '''
     method_funcs = func()
     if method_funcs is None:
         raise Status('500 No "return locals()" in the definition of resource "%r"'%(func.__name__))
@@ -257,7 +257,7 @@ def resource(func):
             if 'BODY' not in env:
                 try: env['BODY'] = env['wsgi.input'].read(int(env['CONTENT_LENGTH']))
                 except (TypeError, ValueError): raise Status('400 Invalid Content-Length')
-            if env['CONTENT_TYPE'].lower() == 'application/json' and env['BODY']: 
+            if env['CONTENT_TYPE'].lower() == 'application/json' and env['BODY']:
                 try: env['BODY'] = json.loads(env['BODY'])
                 except: raise Status('400 Invalid JSON content')
             result = method_funcs[env['REQUEST_METHOD']](req, entity=env['BODY'])
@@ -266,8 +266,8 @@ def resource(func):
 
 def bind(obj):
     '''Bind the given object to a resource. It returns a wsgiref compliant application for that resource.
-    Suppose an object obj={'kundan': user1, 'singh': user2} is bound to a resource '/users' 
-    then GET, PUT, POST and DELETE are implemented on that obj as 
+    Suppose an object obj={'kundan': user1, 'singh': user2} is bound to a resource '/users'
+    then GET, PUT, POST and DELETE are implemented on that obj as
     'GET /users' returns the obj description with its properties and methods.
     'GET /users/kundan' returns the user1 object description.
     'PUT /users/kundan' replaces user1 with the supplied value.
@@ -285,7 +285,7 @@ def bind(obj):
                 if current is None: raise Status('404 Object Not Found')
                 try: current = current[int(part)] if isinstance(current, list) else current[part] if isinstance(current, dict) else current.__dict__[part] if hasattr(current, part) else None
                 except: logger.exception('exception'); raise Status('400 Invalid Scope %r'%(part,))
-            if current is None: result = None 
+            if current is None: result = None
             elif isinstance(current, list): result = [('url', '%s/%d'%(env['SCRIPT_NAME'], i,)) for i in range(len(current))]
             elif isinstance(current, dict): result = tuple([(k, v if isinstance(v, str) else '%s/%s'%(env['SCRIPT_NAME'], k)) for k, v in current.items()])
             else:result = current
@@ -294,7 +294,7 @@ def bind(obj):
             return [value]
         else: raise Status('405 Method Not Allowed')
     return handler
-    
+
 #------------------------------------------------------------------------------
 # Data Model with sqlite3
 #------------------------------------------------------------------------------
@@ -304,12 +304,12 @@ class Model(dict):
     mapping), this just lets the application handle the SQL commands. The only convenience of this class is to allow
     creating the SQL tables using text description of the data model, define python class for each table that can
     constructed using all the values of a row of that table, and define sql and sql1 convenience methods.
-        
+
     >>> desc = """
     ... user
     ...     id        integer        primary key
     ...     name      text
-    ...     
+    ...
     ... files
     ...     id        integer        primary key
     ...     name      text           not null
@@ -324,11 +324,11 @@ class Model(dict):
     >>> c2 = m1.sql('INSERT INTO user VALUES (NULL, ?)', ('Alok Singh',))
     >>> row = m1.sql1('SELECT * FROM user WHERE id=?', (1,))
     >>> u1 = m1['user'](*row)
-    >>> print u1
+    >>> print(u1)
     'id'=1, 'name'=u'Kundan Singh'
-    >>> print u1._list_()
+    >>> print(u1._list_())
     ('user', (('id', 1), ('name', u'Kundan Singh')))
-    >>> print 'table=%r attrs=%r properties=%r'%(u1.__class__._table_, u1.__class__._attrs_, u1.__dict__)
+    >>> print('table=%r attrs=%r properties=%r'%(u1.__class__._table_, u1.__class__._attrs_, u1.__dict__))
     table='user' attrs=['id', 'name'] properties={'id': 1, 'name': u'Kundan Singh'}
     '''
     def __init__(self, conn=None):
@@ -343,17 +343,17 @@ class Model(dict):
         '''Close the connection with the database.'''
         self.conn.close()
         self.conn = None
-        
+
     def sql(self, *args):
-        '''Execute a single SQL command and return the cursor. For select commands application should use the 
+        '''Execute a single SQL command and return the cursor. For select commands application should use the
         cursor as an iterator, or invoke fetchone or fetchall as applicable.'''
         logger.debug('SQL: %s', ': '.join(map(str, args)))
         return self.conn.execute(*args)
-    
-    def sql1(self, *args): 
+
+    def sql1(self, *args):
         '''Execute a single SELECT SQL command and return a single row of the result.'''
         return self.sql(*args).fetchone()
-    
+
     def create(self, data_model, createTable=True, createType=True):
         '''Create the SQL tables using the data_model text description. An example text description is shown below. It
         defines two tables, user and files. Note that the primary key of id must be defined as "integer" instead of
@@ -384,7 +384,7 @@ class Model(dict):
                     def as_dict(self, exclude=None):
                         return dict([(k, self.__dict__[k]) for k in self.__class__._attrs_ if k in self.__dict__ and (exclude is None or k not in exclude)])
                 self[name] = klass
-        
+
 #------------------------------------------------------------------------------
 # Authentication
 #------------------------------------------------------------------------------
@@ -405,14 +405,14 @@ class AuthModel(Model):
         Model.__init__(self, conn)
         self.mypass = hashlib.md5(str(id(self)) + str(time.time())).hexdigest()
         self.create(_loginTable)
-        
+
     def hash(self, email, realm, password):
         return hashlib.md5('%s:%s:%s'%(email, realm, password)).hexdigest()
-    
+
     def token(self, user_id):
         tm = '%010x'%(int(time.time()),)
         return hashlib.md5(self.mypass + str(user_id) + tm).hexdigest() + tm
-    
+
     def valid(self, user_id, token):
         hash, tm = token[:-10], token[-10:]
         return hashlib.md5(self.mypass + str(user_id) + tm).hexdigest() == hash
@@ -420,11 +420,11 @@ class AuthModel(Model):
     def registered(self, email, realm):
         found = self.sql1('SELECT id, hash FROM user_login WHERE email=? AND realm=?', (email, realm))
         return bool(found)
-    
+
     def __len__(self):
         found = self.sql1('SELECT count(*) FROM user_login')
         return found and int(found[0])
-    
+
     def register(self, email, realm, password='', hash=None):
         if not hash: hash = self.hash(email, realm, password)
         found = self.sql1('SELECT id, hash FROM user_login WHERE email=? AND realm=?', (email, realm))
@@ -445,13 +445,13 @@ class AuthModel(Model):
             if method == 'Basic':
                 email, password = base64.b64decode(value).split(':', 1)
                 found = self.sql1('SELECT id, hash FROM user_login WHERE email=?', (email,))
-                if not found: 
+                if not found:
                     request.start_response('401 Unauthorized', [('WWW-Authenticate', 'Basic realm="%s"'%('localhost',))])
                     raise Status('401 Not Found')
-                user_id, hash = found; 
+                user_id, hash = found;
                 realm = "localhost" # TODO: implement this
                 hash_recv = self.hash(email, realm, password)
-                if hash != hash_recv: 
+                if hash != hash_recv:
                     request.start_response('401 Unauthorized', [('WWW-Authenticate', 'Basic realm="%s"'%(realm,))])
                     raise Status('401 Unauthorized')
                 token = self.token(user_id)
@@ -497,7 +497,7 @@ class AuthModel(Model):
                     raise Status('401 Unauthorized')
                 email = found[0]
             return (user_id, email, token)
-        else: 
+        else:
             realm = "localhost"
             request.start_response('401 Unauthorized', [('WWW-Authenticate', 'Basic realm="%s"'%(realm,))])
             raise Status('401 Unauthorized')
