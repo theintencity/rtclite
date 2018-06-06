@@ -12,7 +12,7 @@ from distutils.core import setup
 from distutils.command.install import INSTALL_SCHEMES
 
 # Make the root for data file installations the same as Python code
-for scheme in INSTALL_SCHEMES.values():
+for scheme in list(INSTALL_SCHEMES.values()):
     scheme['data'] = scheme['purelib']
 
 NAME = "rtclite"

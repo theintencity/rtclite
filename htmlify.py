@@ -1,7 +1,7 @@
 # Copyright (c) 2016 Kundan Singh. All rights reserved. See LICENSE for details.
 # Generate the html documentation based on the code and specification.
 
-import sys, os, cgi, re, StringIO, urllib2
+import sys, os, cgi, re, io, urllib.request, urllib.error, urllib.parse
 from highlight import build_html_page, analyze_python, html_highlight, default_html
 
 default_css = {
@@ -38,7 +38,7 @@ quote = lambda s: s.replace('<', '&lt;').replace('>', '&gt;').replace('&','&amp;
 def walkdir(srcdir, destdir):
     for path, subdirs, files in os.walk(srcdir):
         if '__init__.py' in files:
-            for name in filter(lambda x: x.endswith('.py'), files):
+            for name in [x for x in files if x.endswith('.py')]:
                 src = os.path.join(path, name)
                 if name == '__init__.py':
                     dotted = re.sub(r'/', '.', path)
@@ -65,9 +65,9 @@ def openspec(filename, name=None):
     if not os.path.exists(filename):
         name = name.lower()
         if name.startswith('rfc'):
-            input = urllib2.urlopen('http://www.ietf.org/rfc/' + name + '.txt')
+            input = urllib.request.urlopen('http://www.ietf.org/rfc/' + name + '.txt')
         elif name.startswith('draft-'):
-            input = urllib2.urlopen('http://www.ietf.org/internet-drafts/' + name + '.txt')
+            input = urllib.request.urlopen('http://www.ietf.org/internet-drafts/' + name + '.txt')
         else:
             input = None
         if input:
@@ -85,7 +85,7 @@ def openspec(filename, name=None):
 
 def replace_module_comments(html, spec):
     output = html.split('\n')
-    for i in xrange(len(output)):
+    for i in range(len(output)):
         line = output[i]
         m = implements.search(line)
         if m:
@@ -125,7 +125,7 @@ def replace_module_comments(html, spec):
 
 def create_header(type, dotted, src=''):
     parts = dotted.split('.')
-    upup = lambda i: ''.join(['../' for x in xrange(len(parts)-(type == 'module' and 2 or 1)-i)]) + 'index.html'
+    upup = lambda i: ''.join(['../' for x in range(len(parts)-(type == 'module' and 2 or 1)-i)]) + 'index.html'
     parts[:-1] = ['<a href="%s">%s</a>'%(upup(i), quote(x)) for i, x in enumerate(parts[:-1])]
     result = ['<b>%s</b>: %s'%(type[:1].upper() + type[1:], '.'.join(parts))]
     if type == 'package':
@@ -144,7 +144,7 @@ def htmlifier(srcdir=None, destdir=None):
     if not srcdir: srcdir = '.'
     if not destdir: destdir = srcdir
     for type, dotted, src, dest, spec in walkdir(srcdir, destdir):
-        print src
+        print(src)
         with open(src, 'rU') as fp:
             text = analyze_python(fp.read())
         if type == 'module':

@@ -6,7 +6,7 @@ import keyword, tokenize, cgi, re, functools
 try:
     import builtins
 except ImportError:
-    import __builtin__ as builtins
+    import builtins as builtins
 
 #### Analyze Python Source #################################
 
@@ -138,7 +138,7 @@ default_html = '''\
 def build_html_page(classified_text, title='python',
                     css=default_css, html=default_html):
     'Create a complete HTML page with colorized source code'
-    css_str = '\n'.join(['%s %s' % item for item in css.items()])
+    css_str = '\n'.join(['%s %s' % item for item in list(css.items())])
     result = html_highlight(classified_text)
     title = cgi.escape(title)
     return html.format(title=title, css=css_str, body=result)
@@ -181,7 +181,7 @@ def latex_highlight(classified_text, title = 'python',
                     commands = default_latex_commands,
                     document = default_latex_document):
     'Create a complete LaTeX document with colorized source code'
-    macros = '\n'.join(r'\newcommand{\py%s}[1]{%s}' % c for c in commands.items())
+    macros = '\n'.join(r'\newcommand{\py%s}[1]{%s}' % c for c in list(commands.items()))
     result = []
     for kind, text in classified_text:
         if kind:
