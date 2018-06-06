@@ -22,7 +22,7 @@ _padding = False  # whether outbound RTP header contains padding or not?
 
 '''
 return the data as list string representing binary form of the characted in data.
->>> print binstr('\\x01\\x02\\x03\\x04\\x05\\x06\\x07')
+>>> print(binstr('\\x01\\x02\\x03\\x04\\x05\\x06\\x07'))
 00000001000000100000001100000100
 000001010000011000000111--------
 '''
@@ -42,12 +42,12 @@ binstr = lambda x: '\n'.join(binary(x))
 class RTP(object):
     '''A RTP packet.
     >>> p1 = RTP(pt=8, seq=12, ts=13, ssrc=14, csrcs=[15, 16], marker=True, extn=(17, '\\x18\\x19\\x1a\\x1b'), payload='\\x1c\\x1d\\x1e')
-    >>> print ''.join(['%02x'%ord(x) for x in str(p1)])
+    >>> print(''.join(['%02x'%ord(x) for x in str(p1)]))
     9288000c0000000d0000000e0000000f000000100011000118191a1b1c1d1e
     >>> p2 = RTP(value=str(p1))
-    >>> print p2.pt, p2.seq, p2.ts, p2.ssrc, p2.csrcs, p2.marker, p2.extn, repr(p2.payload)
+    >>> print(p2.pt, p2.seq, p2.ts, p2.ssrc, p2.csrcs, p2.marker, p2.extn, repr(p2.payload))
     8 12 13 14 [15, 16] True (17, '\\x18\\x19\\x1a\\x1b') '\\x1c\\x1d\\x1e'
-    >>> print '\\n'.join(binary(str(p2)))
+    >>> print('\\n'.join(binary(str(p2))))
     10010010100010000000000000001100
     00000000000000000000000000001101
     00000000000000000000000000001110
@@ -107,15 +107,15 @@ class RTCP(list):
     >>> p1 = RTCP([sr, rr, sdes, bye])
     >>> p2 = RTCP(str(p1))
     >>> sr, rr, sdes, bye = tuple(p2)
-    >>> print sr.pt, sr.ssrc, sr.ntp, sr.ts, sr.pktcount, sr.octcount
+    >>> print(sr.pt, sr.ssrc, sr.ntp, sr.ts, sr.pktcount, sr.octcount)
     200 1 2.0 3 4 5
-    >>> print rr.pt, rr.ssrc, [(x.ssrc, x.flost, x.clost, x.hseq, x.jitter, x.lsr, x.dlsr) for x in rr.reports]
+    >>> print(rr.pt, rr.ssrc, [(x.ssrc, x.flost, x.clost, x.hseq, x.jitter, x.lsr, x.dlsr) for x in rr.reports])
     201 1 [(1, 2, 3, 4, 5, 6, 7), (8, 9, 10, 11, 12, 13, 14)]
-    >>> print sdes.pt
+    >>> print(sdes.pt)
     202
     >>> for item in sdes.items:
-    ...    print 'ssrc=', item[0]
-    ...    for n,v in item[1]: print '',n,'=',v
+    ...    print('ssrc=', item[0])
+    ...    for n,v in item[1]: print('',n,'=',v)
     ssrc= 1
      1 = kundan@example.net
      2 = Kundan Singh
@@ -123,7 +123,7 @@ class RTCP(list):
      4 = 9176216392
     ssrc= 2
      1 = sanjayc77@example.net
-    >>> print bye.pt, bye.ssrcs, bye.reason
+    >>> print(bye.pt, bye.ssrcs, bye.reason)
     203 [1, 2, 3] disconnecting
     '''
     SR, RR, SDES, BYE, APP = list(range(200, 205)) # various packet types
@@ -255,7 +255,7 @@ class Source(object):
     def __init__(self, ssrc, items=[], address=None):
         '''Create a new member for the given SSRC.
         >>> m = Source(1, [(RTCP.CNAME, 'kundan@example.net'), (RTCP.NAME, 'Kundan Singh')], ('127.0.0.1', 8000))
-        >>> print m
+        >>> print(m)
         <Source ssrc=1 items=[(1, 'kundan@example.net'), (2, 'Kundan Singh')] address=('127.0.0.1', 8000) lost=0 fraction=0 pktcount=0 octcount=0 maxseq=0 badseq=0 cycles=0 baseseq=0 probation=0 received=0 expectedprior=0 receivedprior=0 transit=0 jitter=0 lastts=None lastntp=None rtcpdelay=None>
         '''
         self.ssrc, self.items, self.address = ssrc, items, address
@@ -273,7 +273,7 @@ class Source(object):
     # @implements RFC3550 P80L17-P80L27
     def initseq(self, seq):
         '''Initialize the seq using the newly received seq of RTP packet.
-        >>> print Source(ssrc=1).initseq(10)
+        >>> print(Source(ssrc=1).initseq(10))
         <Source ssrc=1 items=[] address=None lost=0 fraction=0 pktcount=0 octcount=0 maxseq=10 badseq=9 cycles=0 baseseq=10 probation=0 received=0 expectedprior=0 receivedprior=0 transit=0 jitter=0 lastts=None lastntp=None rtcpdelay=None>
         '''
         self.baseseq = self.maxseq = seq
@@ -284,7 +284,7 @@ class Source(object):
     # @implements RFC3550 P79L26-P79L38
     def newfound(self, seq):
         '''Indicate that this source is newly found and added to members table.
-        >>> print Source(ssrc=1).newfound(10)
+        >>> print(Source(ssrc=1).newfound(10))
         <Source ssrc=1 items=[] address=None lost=0 fraction=0 pktcount=0 octcount=0 maxseq=9 badseq=9 cycles=0 baseseq=10 probation=2 received=0 expectedprior=0 receivedprior=0 transit=0 jitter=0 lastts=None lastntp=None rtcpdelay=None>
         '''
         self.initseq(seq)
@@ -294,7 +294,7 @@ class Source(object):
     # @implements RFC3550 P80L29-P81L35
     def updateseq(self, seq):
         '''Update the source properties based on received RTP packet's seq.
-        >>> print Source(1).newfound(10).updateseq(12).updateseq(13) # simulate loss of 11
+        >>> print(Source(1).newfound(10).updateseq(12).updateseq(13)) # simulate loss of 11
         <Source ssrc=1 items=[] address=None lost=0 fraction=0 pktcount=0 octcount=0 maxseq=13 badseq=12 cycles=0 baseseq=13 probation=0 received=1 expectedprior=0 receivedprior=0 transit=0 jitter=0 lastts=None lastntp=None rtcpdelay=None>
         '''
         udelta = seq - self.maxseq
@@ -323,7 +323,7 @@ class Source(object):
     def updatejitter(self, ts, arrival):
         '''Update the jitter based on ts and arrival (in ts units). 
         >>> s = Source(1).newfound(10).updatejitter(1000, 0).updatejitter(1160, 160).updatejitter(1330, 320)
-        >>> print s.transit, int(s.jitter)
+        >>> print(s.transit, int(s.jitter))
         -1010 55
         '''
         transit = int(arrival - ts)
@@ -335,7 +335,7 @@ class Source(object):
     def updatelostandexpected(self):
         '''Update the number of packets expected and lost.
         >>> s = Source(1).newfound(10).updateseq(11).updateseq(12).updateseq(14).updatelostandexpected() # similar loss of 13
-        >>> print s.lost, s.fraction, s.expectedprior, s.receivedprior
+        >>> print(s.lost, s.fraction, s.expectedprior, s.receivedprior)
         1 85 3 2
         '''
         extendedmax = self.cycles + self.maxseq
@@ -357,7 +357,7 @@ class Source(object):
 
 def time2ntp(value):
     '''Convert from time.time() output to NTP (sec, frac).
-    >>> print time2ntp(0.5)
+    >>> print(time2ntp(0.5))
     (2208988800, 2147483648)
     '''
     value = value + 2208988800
@@ -365,7 +365,7 @@ def time2ntp(value):
 
 def ntp2time(value):
     '''Convert from NTP (sec, frac) to time similar to time.time() output.
-    >>> print ntp2time(time2ntp(10.5))
+    >>> print(ntp2time(time2ntp(10.5)))
     10.5
     '''
     return (value[0] + value[1] / 4294967296.) - 2208988800
@@ -832,3 +832,4 @@ class gevent_Network(Network):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

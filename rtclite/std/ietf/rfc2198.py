@@ -8,7 +8,7 @@ Create the redundant payload using list of tuples, each item (pt, timestamp, pay
 the first item is the primary with largest timestamp and subsequent ones are redundants.
 
 >>> packet = createRedundant(packets=[(126, 0x0002, '\x01\x01\x01\x01'), (127, 0x0001, '\x02\x02')])
->>> print packet.encode('hex')
+>>> print(packet.encode('hex'))
 ff0001027e020201010101
 
 To parse the redundant payload, also supply the primary timestamp from the RTP header, so that
@@ -60,3 +60,4 @@ def parseRedundant(packet, ts):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

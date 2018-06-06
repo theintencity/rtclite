@@ -212,7 +212,7 @@ def save(key, asPEM=False):
 # following is reused from http://www.amk.ca/python/writing/crypto-curiosa
 def rsa(data, n, e=0x10001, d=None, bits=1024):
     '''Create a generator to perform encryption or decryption operation.
-    >>> print rsa(rsa('kund', n=0x1967cb529, e=0x10001, bits=40).next(), n=0x1967cb529, d=0xac363601, bits=40).next()
+    >>> print(next(rsa(next(rsa('kund', n=0x1967cb529, e=0x10001, bits=40)), n=0x1967cb529, d=0xac363601, bits=40)))
     kund
     '''
     if not d: o, inb = bits/8, bits/8-1   # encryption
@@ -225,7 +225,7 @@ def rsa(data, n, e=0x10001, d=None, bits=1024):
 
 def arc4(data, key):
     '''Create a generator for alleged RC4 encryption or decryption.
-    >>> print arc4(data=arc4(data="kundan", key='666f6f').next(), key='666f6f').next()
+    >>> print(next(arc4(data=next(arc4(data="kundan", key='666f6f')), key='666f6f')))
     kundan
     '''
     t,x,y,j,a=list(range(256)),0,0,0,key
@@ -256,7 +256,7 @@ def verify(Kp, hash, signature):
     associated with this public key Kp. Returns True on success and False otherwise.
     
     >>> Ks, Kp = generateRSA(); 
-    >>> print verify(Kp, 'somehash', sign(Ks, 'somehash'))
+    >>> print(verify(Kp, 'somehash', sign(Ks, 'somehash')))
     True
     '''
     _hash = next(rsa(data=signature, n=Kp.n, e=Kp.e, bits=Kp._bits+8))
@@ -301,3 +301,4 @@ VJ9B9MDo5ZLx7h4jyqROEgDjYEwi69I+dVvG3DKD+VBdPw==
     load_orig, load = load, load_mod
     import doctest
     doctest.testmod()
+

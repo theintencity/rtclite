@@ -20,13 +20,13 @@ def parts(uri):
     Here transport is one of 'udp', 'tcp', 'tls' or 'dtls'; secure is boolean, host is
     str and port is int.
     
-    >>> print parts(URI('turn:example.org:8000?transport=tcp'))
+    >>> print(parts(URI('turn:example.org:8000?transport=tcp')))
     ('example.org', 8000, 'tcp', False)
     
     >>> for s in ('turn:example.org', 'turns:example.org', 'turn:example.org:8000',
     ...           'turn:example.org?transport=udp', 'turn:example.org?transport=tcp', 
     ...           'turns:example.org?transport=tcp', 'turns:example.org?transport=udp'):
-    ...     print parts(URI(s))
+    ...     print(parts(URI(s)))
     ('example.org', 3478, 'udp', False)
     ('example.org', 5349, 'tls', True)
     ('example.org', 8000, 'udp', False)
@@ -48,3 +48,4 @@ def parts(uri):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

@@ -33,7 +33,7 @@ _exception    = {'call-id':'Call-ID','cseq':'CSeq','www-authenticate':'WWW-Authe
 
 def _canon(s):
     '''Return the canonical form of the header.
-    >>> print _canon('call-Id'), _canon('fRoM'), _canon('refer-to')
+    >>> print(_canon('call-Id'), _canon('fRoM'), _canon('refer-to'))
     Call-ID From Refer-To
     '''
     s = s.lower()
@@ -45,17 +45,17 @@ class Header(object):
     '''A SIP header object with dynamic properties.
     Attributes such as name, and various parameters can be accessed on the object.
 
-    >>> print repr(Header('"Kundan Singh" <sip:kundan@example.net>', 'To'))
+    >>> print(repr(Header('"Kundan Singh" <sip:kundan@example.net>', 'To')))
     To: "Kundan Singh" <sip:kundan@example.net>
-    >>> print repr(Header('"Kundan"<sip:kundan99@example.net>', 'To'))
+    >>> print(repr(Header('"Kundan"<sip:kundan99@example.net>', 'To')))
     To: "Kundan" <sip:kundan99@example.net>
-    >>> print repr(Header('Sanjay <sip:sanjayc77@example.net>', 'fRoM'))
+    >>> print(repr(Header('Sanjay <sip:sanjayc77@example.net>', 'fRoM')))
     From: "Sanjay" <sip:sanjayc77@example.net>
-    >>> print repr(Header('application/sdp', 'conTenT-tyPe'))
+    >>> print(repr(Header('application/sdp', 'conTenT-tyPe')))
     Content-Type: application/sdp
-    >>> print repr(Header('presence; param=value;param2=another', 'Event'))
+    >>> print(repr(Header('presence; param=value;param2=another', 'Event')))
     Event: presence;param=value;param2=another
-    >>> print repr(Header('78  INVITE', 'CSeq'))
+    >>> print(repr(Header('78  INVITE', 'CSeq')))
     CSeq: 78 INVITE
     '''
 
@@ -96,15 +96,15 @@ class Header(object):
     @staticmethod
     def parseParams(rest, delimiter=';'):
         '''A generator to parse the parameters using the supplied delimitter.
-        >>> print list(Header.parseParams(";param1=value1;param2=value2"))
+        >>> print(list(Header.parseParams(";param1=value1;param2=value2")))
         [('param1', 'value1'), ('param2', 'value2')]
-        >>> print list(Header.parseParams(';param1="value1" ;param2="value2"'))
+        >>> print(list(Header.parseParams(';param1="value1" ;param2="value2"')))
         [('param1', 'value1'), ('param2', 'value2')]
-        >>> print list(Header.parseParams('param1="value1", param2=value2', delimiter=','))
+        >>> print(list(Header.parseParams('param1="value1", param2=value2', delimiter=',')))
         [('param1', 'value1'), ('param2', 'value2')]
-        >>> print list(Header.parseParams('param1="";param2'))
+        >>> print(list(Header.parseParams('param1="";param2')))
         [('param1', ''), ('param2', '')]
-        >>> print list(Header.parseParams('param1="";param2=;'))  # error cases
+        >>> print(list(Header.parseParams('param1="";param2=;')))  # error cases
         [('param1', ''), ('param2', '')]
         '''
         try:
@@ -159,11 +159,11 @@ class Header(object):
     @property
     def viaUri(self):
         '''Read-only URI representing Via header's value.
-        >>> print Header('SIP/2.0/UDP example.net:5090;ttl=1', 'Via').viaUri
+        >>> print(Header('SIP/2.0/UDP example.net:5090;ttl=1', 'Via').viaUri)
         sip:example.net:5090;transport=udp
-        >>> print Header('SIP/2.0/UDP 192.1.2.3;rport=1078;received=76.17.12.18;branch=0', 'Via').viaUri
+        >>> print(Header('SIP/2.0/UDP 192.1.2.3;rport=1078;received=76.17.12.18;branch=0', 'Via').viaUri)
         sip:76.17.12.18:1078;transport=udp
-        >>> print Header('SIP/2.0/UDP 192.1.2.3;maddr=224.0.1.75', 'Via').viaUri
+        >>> print(Header('SIP/2.0/UDP 192.1.2.3;maddr=224.0.1.75', 'Via').viaUri)
         sip:224.0.1.75:5060;transport=udp
         '''
         if not hasattr(self, '_viaUri'):
@@ -185,9 +185,9 @@ class Header(object):
         '''Parse a header line and return (name, [Header, Header, Header]) where name
         represents the header name, and the list has list of Header objects, typically
         one but for comma separated header line there can be multiple.
-        >>> print Header.createHeaders('Event: presence, reg')
+        >>> print(Header.createHeaders('Event: presence, reg'))
         ('Event', [Event: presence, Event: reg])
-        >>> print Header.createHeaders('Contact: <sip:user@1.2.3.4:5060;line=vvl1wrhk>;reg-id=1;q=1.0;+sip.instance="<urn:uuid:bff62662-19cc-4781-8830-0004132E682E>";audio;mobility="fixed";duplex="full";description="snom370";actor="principal";events="dialog";methods="INVITE,ACK,CANCEL,BYE,REFER,OPTIONS,NOTIFY,SUBSCRIBE,PRACK,MESSAGE,INFO"')
+        >>> print(Header.createHeaders('Contact: <sip:user@1.2.3.4:5060;line=vvl1wrhk>;reg-id=1;q=1.0;+sip.instance="<urn:uuid:bff62662-19cc-4781-8830-0004132E682E>";audio;mobility="fixed";duplex="full";description="snom370";actor="principal";events="dialog";methods="INVITE,ACK,CANCEL,BYE,REFER,OPTIONS,NOTIFY,SUBSCRIBE,PRACK,MESSAGE,INFO"'))
         ('Contact', [Contact: <sip:user@1.2.3.4:5060;line=vvl1wrhk>;reg-id=1;mobility=fixed;duplex=full;description=snom370;actor=principal;q=1.0;methods="INVITE,ACK,CANCEL,BYE,REFER,OPTIONS,NOTIFY,SUBSCRIBE,PRACK,MESSAGE,INFO";audio;events=dialog;+sip.instance="<urn:uuid:bff62662-19cc-4781-8830-0004132E682E>"])
         '''
         name, value = list(map(str.strip, value.split(':', 1)))
@@ -1736,3 +1736,4 @@ class Proxy(UserAgent):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

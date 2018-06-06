@@ -4,7 +4,7 @@
 '''
 Implements the codes of T.140 for real-time text.
 
->>> print '%r'%([BEL, BS, NEWLINE, CRLF, SOS, ST, ESC, INT, BOM])
+>>> print('%r'%([BEL, BS, NEWLINE, CRLF, SOS, ST, ESC, INT, BOM]))
 ['\\x07', '\\x08', '\\xe2\\x80\\xa8', '\\r\\n', '\\xc2\\x98', '\\xc2\\x9c', '\\x1b', '\\x1ba', '\\xef\\xbb\\xbf']
 '''
 
@@ -17,3 +17,4 @@ for code, name in names.items(): exec('%s=%r'%(name, code))
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

@@ -13,9 +13,9 @@ _unquote = lambda s: s[1:-1] if s and s[0] == '"' == s[-1] else s
 
 def createAuthenticate(authMethod='Digest', **kwargs):
     '''Build the WWW-Authenticate header's value.
-    >>> print createAuthenticate('Basic', realm='iptel.org')
+    >>> print(createAuthenticate('Basic', realm='iptel.org'))
     Basic realm="iptel.org"
-    >>> print createAuthenticate('Digest', realm='iptel.org', domain='sip:iptel.org', nonce='somenonce')
+    >>> print(createAuthenticate('Digest', realm='iptel.org', domain='sip:iptel.org', nonce='somenonce'))
     Digest realm="iptel.org", domain="sip:iptel.org", qop="auth", nonce="somenonce", opaque="", stale=FALSE, algorithm=MD5
     '''
     if authMethod.lower() == 'basic':
@@ -39,9 +39,9 @@ def createAuthorization(challenge, username, password, uri=None, method=None, en
     method. The result contains the properties in alphabetical order of property name.
 
     >>> context = {'cnonce':'0a4f113b', 'nc': 0}
-    >>> print createAuthorization('Digest realm="testrealm@host.com", qop="auth", nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093", opaque="5ccc069c403ebaf9f0171e9517f40e41"', 'Mufasa', 'Circle Of Life', '/dir/index.html', 'GET', None, context)
+    >>> print(createAuthorization('Digest realm="testrealm@host.com", qop="auth", nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093", opaque="5ccc069c403ebaf9f0171e9517f40e41"', 'Mufasa', 'Circle Of Life', '/dir/index.html', 'GET', None, context))
     Digest cnonce="0a4f113b",nc=00000001,nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",opaque="5ccc069c403ebaf9f0171e9517f40e41",qop=auth,realm="testrealm@host.com",response="6629fae49393a05397450978507c4ef1",uri="/dir/index.html",username="Mufasa"
-    >>> print createAuthorization('Basic realm="WallyWorld"', 'Aladdin', 'open sesame')
+    >>> print(createAuthorization('Basic realm="WallyWorld"', 'Aladdin', 'open sesame'))
     Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==
     '''
     authMethod, sep, rest = challenge.strip().partition(' ')
@@ -92,7 +92,7 @@ def digest(cr):
     '''Create a digest response for the credentials.
 
     >>> input = {'httpMethod':'GET', 'username':'Mufasa', 'password': 'Circle Of Life', 'realm':'testrealm@host.com', 'algorithm':'md5', 'nonce':'dcd98b7102dd2f0e8b11d0f600bfb0c093', 'uri':'/dir/index.html', 'qop':'auth', 'nc': '00000001', 'cnonce':'0a4f113b', 'opaque':'5ccc069c403ebaf9f0171e9517f40e41'}
-    >>> print digest(input)
+    >>> print(digest(input))
     "6629fae49393a05397450978507c4ef1"
     '''
     algorithm, username, realm, password, nonce, cnonce, nc, qop, httpMethod, uri, entityBody \
@@ -120,7 +120,7 @@ def digest(cr):
 def basic(cr):
     '''Create a basic response for the credentials.
 
-    >>> print basic({'username':'Aladdin', 'password':'open sesame'})
+    >>> print(basic({'username':'Aladdin', 'password':'open sesame'}))
     QWxhZGRpbjpvcGVuIHNlc2FtZQ==
     '''
     # @implements RFC2617 P5L43-P6L6
@@ -130,3 +130,4 @@ def basic(cr):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

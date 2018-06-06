@@ -5,39 +5,39 @@
 Uses DNS to resolve a domain name into SIP servers using NAPTR, SRV and A/AAAA records.
 TODO: (1) need to make it multitask compatible or have a separate thread, (3) need to return priority and weight.
 
->>> print resolve('sip:192.1.2.3')                    # with numeric IP
+>>> print(resolve('sip:192.1.2.3'))                    # with numeric IP
 [('192.1.2.3', 5060, 'udp'), ('192.1.2.3', 5060, 'tcp'), ('192.1.2.3', 5061, 'tls')]
->>> print resolve('sip:192.1.2.3;maddr=192.3.3.3')    #    and maddr param
+>>> print(resolve('sip:192.1.2.3;maddr=192.3.3.3'))    #    and maddr param
 [('192.3.3.3', 5060, 'udp'), ('192.3.3.3', 5060, 'tcp'), ('192.3.3.3', 5061, 'tls')]
->>> print resolve('sip:192.1.2.3:5062;transport=tcp') #    and port, transport param
+>>> print(resolve('sip:192.1.2.3:5062;transport=tcp')) #    and port, transport param
 [('192.1.2.3', 5062, 'tcp')]
->>> print resolve('sips:192.1.2.3')                   #    and sips
+>>> print(resolve('sips:192.1.2.3'))                   #    and sips
 [('192.1.2.3', 5061, 'tls')]
->>> print resolve('sips:192.1.2.3:5062')              #    and sips, port
+>>> print(resolve('sips:192.1.2.3:5062'))              #    and sips, port
 [('192.1.2.3', 5062, 'tls')]
->>> print resolve('sip:39peers.net')                  # with non-numeric without NAPTR/SRV
+>>> print(resolve('sip:39peers.net'))                  # with non-numeric without NAPTR/SRV
 [('74.220.215.84', 5060, 'udp'), ('74.220.215.84', 5060, 'tcp'), ('74.220.215.84', 5061, 'tls')]
->>> print resolve('sip:39peers.net:5062')             #    and port  
+>>> print(resolve('sip:39peers.net:5062'))             #    and port  
 [('74.220.215.84', 5062, 'udp'), ('74.220.215.84', 5062, 'tcp'), ('74.220.215.84', 5062, 'tls')]
->>> print resolve('sip:39peers.net;transport=tcp')    #    and transport  
+>>> print(resolve('sip:39peers.net;transport=tcp'))    #    and transport  
 [('74.220.215.84', 5060, 'tcp')]
->>> print resolve('sips:39peers.net')                 #    and sips  
+>>> print(resolve('sips:39peers.net'))                 #    and sips  
 [('74.220.215.84', 5061, 'tls')]
->>> print resolve('sip:iptel.org')                    # with no NAPTR but has SRV records
+>>> print(resolve('sip:iptel.org'))                    # with no NAPTR but has SRV records
 [('212.79.111.157', 5060, 'udp'), ('212.79.111.157', 5060, 'tcp')]
->>> print resolve('sips:iptel.org')                   #    and sips
+>>> print(resolve('sips:iptel.org'))                   #    and sips
 [('212.79.111.155', 5061, 'tls')]
->>> print resolve('sip:columbia.edu')                 # with one NAPTR and two SRV records
+>>> print(resolve('sip:columbia.edu'))                 # with one NAPTR and two SRV records
 [('128.59.59.208', 5060, 'udp'), ('128.59.59.229', 5060, 'udp')]
->>> print resolve('sips:columbia.edu')                #    and sips (no NAPTR for sips)
+>>> print(resolve('sips:columbia.edu'))                #    and sips (no NAPTR for sips)
 [('128.59.105.24', 5061, 'tls')]
->>> print resolve('sip:adobe.com')                    # with multiple NAPTR and multiple SRV
+>>> print(resolve('sip:adobe.com'))                    # with multiple NAPTR and multiple SRV
 [('192.150.16.117', 5060, 'udp')]
->>> print resolve('sip:adobe.com', supported=('tcp', 'tls')) # if udp is not supported
+>>> print(resolve('sip:adobe.com', supported=('tcp', 'tls'))) # if udp is not supported
 [('192.150.16.117', 5060, 'tcp')]
->>> print resolve('sips:adobe.com')                    # with multiple NAPTR and multiple SRV
+>>> print(resolve('sips:adobe.com'))                    # with multiple NAPTR and multiple SRV
 [('192.150.12.115', 5061, 'tls')]
->>> print list(sorted(resolve('sip:twilio.com')))
+>>> print(list(sorted(resolve('sip:twilio.com'))))
 [('50.31.227.68', 5060, 'udp'), ('50.31.227.69', 5060, 'udp'), ('50.31.227.70', 5060, 'udp'), ('69.5.92.68', 5060, 'udp'), ('69.5.92.69', 5060, 'udp'), ('69.5.92.70', 5060, 'udp')]
 '''
 
@@ -120,4 +120,5 @@ if __name__ == '__main__': # Unit test of this module
     logger.setLevel(logging.CRITICAL)
     import doctest
     doctest.testmod()
+
 

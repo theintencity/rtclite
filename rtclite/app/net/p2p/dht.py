@@ -81,19 +81,19 @@ randomNonce = lambda: random.randint(0, Hmod)
 
 def _testUtil():
     '''
-    >>> print bin2int('\x22\x22'), ','.join(str(ord(a)) for a in int2bin(8738)) # 0x22=34, number=34*256+34
+    >>> print(bin2int('\x22\x22'), ','.join(str(ord(a)) for a in int2bin(8738))) # 0x22=34, number=34*256+34
     8738 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,34,34
-    >>> print dig2int([0x22, 0x22], 8, 2), int2dig(8738, 8, 4)
+    >>> print(dig2int([0x22, 0x22], 8, 2), int2dig(8738, 8, 4))
     8738 [0, 0, 34, 34]
-    >>> print distance(10, 0), distance(0, 10), distance(2**160-10, 0), distance(0, 2**160-10) # Hmod is 2**160 by default
+    >>> print(distance(10, 0), distance(0, 10), distance(2**160-10, 0), distance(0, 2**160-10)) # Hmod is 2**160 by default
     10 10 10 10
-    >>> print inrange(10, 2**160-10, 5), inrange(2**160-10, 10, 5)
+    >>> print(inrange(10, 2**160-10, 5), inrange(2**160-10, 10, 5))
     False True
     '''
 
 def find(comp, seq):
     '''Find an element's index in the sequence, or -1 if not found, using the comp as the function to compare.
-    >>> print find(lambda x: x==10, [8, 9, 10, 11])
+    >>> print(find(lambda x: x==10, [8, 9, 10, 11]))
     2
     '''  
     index = 0
@@ -155,7 +155,7 @@ class Message(dict):
     instead of this custom binary format.
     
     >>> m = Message(name='Join:Request', path=[])
-    >>> print repr(Message(raw=str(m)))
+    >>> print(repr(Message(raw=str(m))))
     <Message name=Join:Request path=[]>
     '''
     def __init__(self, raw=None, **kwargs):
@@ -588,9 +588,9 @@ class LeafSet(object):
     
     >>> node = Node(ip='0.0.0.0', port=0, type=socket.SOCK_DGRAM, guid=H('0.0.0.0:0'))
     >>> ls = LeafSet(node=node)
-    >>> for port in xrange(1, 100): 
+    >>> for port in range(1, 100): 
     ...    ignore = ls.add(Node(ip='0.0.0.0', port=port, type=socket.SOCK_DGRAM, guid=H('0.0.0.0:'+str(port))))
-    >>> print ls
+    >>> print(ls)
     <LeafSet <node ip='0.0.0.0' port=25 type=2 guid=332553500505024118139453427259589985268347006514L>
         <node ip='0.0.0.0' port=76 type=2 guid=344256270334124892387775982735564292838031798975L>
         <node ip='0.0.0.0' port=95 type=2 guid=345064513834135878542882879036800526214322188981L>
@@ -600,19 +600,19 @@ class LeafSet(object):
         <node ip='0.0.0.0' port=58 type=2 guid=415748779641751273361359367594880519561321642612L>
         <node ip='0.0.0.0' port=84 type=2 guid=420350901529310083152176181882612694359107974252L>
         <node ip='0.0.0.0' port=82 type=2 guid=447023377445164417508254939667924928525196135428L>>
-    >>> print len(ls), ls.maxsize
+    >>> print(len(ls), ls.maxsize)
     4 4
-    >>> print ls['low'].guid < ls[0].guid < ls['high'].guid
+    >>> print(ls['low'].guid < ls[0].guid < ls['high'].guid)
     True
-    >>> print (ls['high'].guid-1 in ls), (ls['high'].guid+1) in ls
+    >>> print((ls['high'].guid-1 in ls), (ls['high'].guid+1) in ls)
     True False
-    >>> print ls.closest(ls[-2].guid+10).guid == ls[-2].guid
+    >>> print(ls.closest(ls[-2].guid+10).guid == ls[-2].guid)
     True
-    >>> print ls.replicas(ls[-2].guid+10, 4) == set([ls[0], ls[-1], ls[-2]])
+    >>> print(ls.replicas(ls[-2].guid+10, 4) == set([ls[0], ls[-1], ls[-2]]))
     True
-    >>> print ls.intermediates(ls[-2].guid) == [ls[-1]]
+    >>> print(ls.intermediates(ls[-2].guid) == [ls[-1]])
     True
-    >>> print (ls.random in ls)
+    >>> print((ls.random in ls))
     True
     ''' 
     def __init__(self, node, maxsize=4):
@@ -817,19 +817,19 @@ class NodeCache(object):
     >>> cache = NodeCache(maxsize=4)
     >>> for port in range(0, cache.maxsize): # until the cache is full
     ...    cache.add(Node(ip='0.0.0.0', port=port, type=socket.SOCK_DGRAM, guid=H('0.0.0.0:'+str(port))))
-    >>> print cache
+    >>> print(cache)
     <NodeCache len=4
         sorted='[386487918899427893147283785174226450560216948519L, 696085870186638593551070967803585453548489714879L, 852739581864525514108676383126943539373951595004L, 1270878719196245987460471235562079865445211503331L]'
         recent='[696085870186638593551070967803585453548489714879L, 852739581864525514108676383126943539373951595004L, 1270878719196245987460471235562079865445211503331L, 386487918899427893147283785174226450560216948519L]'>
     >>> for port in range(cache.maxsize, 2*cache.maxsize): # add additional 4 so that previous ones are replaced
     ...    cache.add(Node(ip='0.0.0.0', port=port, type=socket.SOCK_DGRAM, guid=H('0.0.0.0:'+str(port))))
-    >>> print cache
+    >>> print(cache)
     <NodeCache len=4
         sorted='[252478387135709829778192334194629447386561244062L, 893097759797013506484723759710183999272836968151L, 910908089409371729128886584183916560096870579416L, 1321123319433667090818861432786256425521662391362L]'
         recent='[893097759797013506484723759710183999272836968151L, 252478387135709829778192334194629447386561244062L, 910908089409371729128886584183916560096870579416L, 1321123319433667090818861432786256425521662391362L]'>
     >>> for port in range(cache.maxsize, 2*cache.maxsize): # repeated entries, cache remains the same
     ...    cache.add(Node(ip='0.0.0.0', port=port, type=socket.SOCK_DGRAM, guid=H('0.0.0.0:'+str(port))))
-    >>> print cache
+    >>> print(cache)
     <NodeCache len=4
         sorted='[252478387135709829778192334194629447386561244062L, 893097759797013506484723759710183999272836968151L, 910908089409371729128886584183916560096870579416L, 1321123319433667090818861432786256425521662391362L]'
         recent='[893097759797013506484723759710183999272836968151L, 252478387135709829778192334194629447386561244062L, 910908089409371729128886584183916560096870579416L, 1321123319433667090818861432786256425521662391362L]'>
@@ -1987,3 +1987,4 @@ if __name__ == '__main__':
         try: multitask.run()
         except KeyboardInterrupt: pass
         stop()
+

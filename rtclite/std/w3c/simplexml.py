@@ -6,62 +6,62 @@ when processing XML. The basic API ideas are inspired from ActionScript's XML an
 XML is the main class which can be used as follows:
 
 An XML string can be parsed using the constructor.
->>> a1 = XML(u'<people xmlns="private" type="contacts">start<contact>Kundan Singh</contact>end</people>')
->>> print a1
+>>> a1 = XML('<people xmlns="private" type="contacts">start<contact>Kundan Singh</contact>end</people>')
+>>> print(a1)
 <people xmlns="private" type="contacts">start<contact>Kundan Singh</contact>end</people>
 
 The XML element has attributes such as xmlns, tag and children. The XML attributes can be accessed using the
 special attribute named '_' in the XML object. The XML attribute can also be read-accessed as a regular
 Python attribute on the XML element assuming there is no conflict and the attribute name is simple.
->>> print a1.xmlns, a1.tag
+>>> print(a1.xmlns, a1.tag)
 private people
->>> print a1.type
+>>> print(a1.type)
 contacts
->>> print a1.type == a1._['type'] == a1._.type == 'contacts'
+>>> print(a1.type == a1._['type'] == a1._.type == 'contacts')
 True
->>> a1._.source='yahoo'; print a1
+>>> a1._.source='yahoo'; print(a1)
 <people xmlns="private" source="yahoo" type="contacts">start<contact>Kundan Singh</contact>end</people>
->>> del a1._['source']; print a1
+>>> del a1._['source']; print(a1)
 <people xmlns="private" type="contacts">start<contact>Kundan Singh</contact>end</people>
 
 The children can be accessed using various ways. The children attribute returns the XMLList of children
 which includes both elements and data objects.
 >>> x1 = a1.children
->>> print len(x1)
+>>> print(len(x1))
 3
 
 An XMLList is derived from list, and each element contains individual XML element or data item.
->>> print x1
+>>> print(x1)
 start<contact>Kundan Singh</contact>end
->>> print list(x1)
+>>> print(list(x1))
 [u'start', <contact>Kundan Singh</contact>, u'end']
->>> print ', '.join(map(unicode, x1))
+>>> print(', '.join(map(str, x1)))
 start, <contact>Kundan Singh</contact>, end
->>> print XML('<contact>Kundan Singh</contact>') in x1, u'start' in x1
+>>> print(XML('<contact>Kundan Singh</contact>') in x1, 'start' in x1)
 True False
 
 You can use the list semantics to access the children. The list methods such as append, extend, 
 insert, pop, reverse, and operators such as del, slicing and indexing. The only catch is that
 the slicing operation returns a regular list, instead of XMLList.
->>> x1.append(XML('<contact/>')); print x1
+>>> x1.append(XML('<contact/>')); print(x1)
 start<contact>Kundan Singh</contact>end<contact />
->>> x1.extend(['final']); print x1
+>>> x1.extend(['final']); print(x1)
 start<contact>Kundan Singh</contact>end<contact />final
->>> x1.insert(1, 'begin'); print x1
+>>> x1.insert(1, 'begin'); print(x1)
 startbegin<contact>Kundan Singh</contact>end<contact />final
->>> y = x1.pop(); print y, x1
+>>> y = x1.pop(); print(y, x1)
 final startbegin<contact>Kundan Singh</contact>end<contact />
->>> x1.reverse(); print x1
+>>> x1.reverse(); print(x1)
 <contact />end<contact>Kundan Singh</contact>beginstart
->>> del x1[3]; print x1
+>>> del x1[3]; print(x1)
 <contact />end<contact>Kundan Singh</contact>start
->>> x1[1], x1[3] = x1[3], x1[1]; print x1
+>>> x1[1], x1[3] = x1[3], x1[1]; print(x1)
 <contact />start<contact>Kundan Singh</contact>end
->>> print x1[0], isinstance(x1[0], XML), type(x1[1])
+>>> print(x1[0], isinstance(x1[0], XML), type(x1[1]))
 <contact /> True <type 'unicode'>
->>> print x1[0:2], type(x1) == XMLList, type(x1[0:2])
+>>> print(x1[0:2], type(x1) == XMLList, type(x1[0:2]))
 [<contact />, u'start'] True <type 'list'>
->>> print x1[:]
+>>> print(x1[:])
 [<contact />, u'start', <contact>Kundan Singh</contact>, u'end']
 
 You can also use the mapping semantics to access the children. It allows various filtering and
@@ -72,94 +72,94 @@ of the elements in XMLList. Additionally the cdata and elems attributes fetch on
 CDATA string or list of elements, respectively.
 >>> type(x1.contact) == XMLList
 True
->>> print x1.contact
+>>> print(x1.contact)
 <contact /><contact>Kundan Singh</contact>
->>> print x1.contact == x1["contact"]
+>>> print(x1.contact == x1["contact"])
 True
->>> print x1.contact == x1[lambda x: x.tag == 'contact']
+>>> print(x1.contact == x1[lambda x: x.tag == 'contact'])
 True
 
 >>> x = XML('<first><second><third a="1"/><third a="2"/><third2/></second></first>')
 >>> x2 = x.children
->>> print x2("third")
+>>> print(x2("third"))
 <third a="1" /><third a="2" />
->>> print x2(lambda x: x.tag == 'third') == x2('third')
+>>> print(x2(lambda x: x.tag == 'third') == x2('third'))
 True
->>> print x2()
+>>> print(x2())
 <third a="1" /><third a="2" /><third2 />
->>> print x2['*']
+>>> print(x2['*'])
 <second><third a="1" /><third a="2" /><third2 /></second>
->>> print x()('third')
+>>> print(x()('third'))
 <third a="1" /><third a="2" />
->>> print x() == x.children["*"]
+>>> print(x() == x.children["*"])
 True
 
->>> print 'contact' in x1, 'info' in x1
+>>> print('contact' in x1, 'info' in x1)
 True False
->>> x1['info'] = XML('<info>contact list</info>'); print x1
+>>> x1['info'] = XML('<info>contact list</info>'); print(x1)
 <contact />start<contact>Kundan Singh</contact>end<info>contact list</info>
->>> del x1['info']; print x1
+>>> del x1['info']; print(x1)
 <contact />start<contact>Kundan Singh</contact>end
->>> x1['info'] = 'contact list'; print x1 # has same effect as earlier explict XML assignment
+>>> x1['info'] = 'contact list'; print(x1) # has same effect as earlier explict XML assignment
 <contact />start<contact>Kundan Singh</contact>end<info>contact list</info>
->>> x1['info'] = None; print x1; # same effect as del x1['info']
+>>> x1['info'] = None; print(x1); # same effect as del x1['info']
 <contact />start<contact>Kundan Singh</contact>end
->>> x1['contact'] = XMLList([XML('<contact>Kundan Singh</contact>'), XML('<contact>Mamta Singh</contact>')]); print x1
+>>> x1['contact'] = XMLList([XML('<contact>Kundan Singh</contact>'), XML('<contact>Mamta Singh</contact>')]); print(x1)
 <contact>Kundan Singh</contact><contact>Mamta Singh</contact>startend
->>> x1['info'] = XMLList([XML('<info>contact list</info>')]); print x1
+>>> x1['info'] = XMLList([XML('<info>contact list</info>')]); print(x1)
 <contact>Kundan Singh</contact><contact>Mamta Singh</contact>startend<info>contact list</info>
 
->>> print x1.keys()
+>>> print(list(x1.keys()))
 set([u'info', u'contact'])
->>> print map(unicode, x1.iterkeys())
+>>> print(list(map(str, iter(x1.keys()))))
 [u'info', u'contact']
 
->>> print x1.values()
+>>> print(list(x1.values()))
 [<contact>Kundan Singh</contact>, <contact>Mamta Singh</contact>, u'start', u'end', <info>contact list</info>]
->>> print map(unicode, x1.itervalues())
+>>> print(list(map(str, iter(x1.values()))))
 [u'<contact>Kundan Singh</contact>', u'<contact>Mamta Singh</contact>', u'start', u'end', u'<info>contact list</info>']
 
->>> print x1.items()
+>>> print(list(x1.items()))
 [(u'contact', <contact>Kundan Singh</contact>), (u'contact', <contact>Mamta Singh</contact>), ('#text', u'start'), ('#text', u'end'), (u'info', <info>contact list</info>)]
->>> print map(unicode, x1.iteritems())
+>>> print(list(map(str, iter(x1.items()))))
 [u"(u'contact', <contact>Kundan Singh</contact>)", u"(u'contact', <contact>Mamta Singh</contact>)", u"('#text', u'start')", u"('#text', u'end')", u"(u'info', <info>contact list</info>)"]
 
->>> x2 = x1.copy(); print type(x2) == XMLList, x2 == x1
+>>> x2 = x1.copy(); print(type(x2) == XMLList, x2 == x1)
 True True
->>> x2.clear(); print len(x2), len(x1)
+>>> x2.clear(); print(len(x2), len(x1))
 0 5
 
->>> print x1.cdata
+>>> print(x1.cdata)
 Kundan SinghMamta Singhstartendcontact list
->>> print x1.elems
+>>> print(x1.elems)
 [<contact>Kundan Singh</contact>, <contact>Mamta Singh</contact>, <info>contact list</info>]
->>> del x1[1:]; print x1
+>>> del x1[1:]; print(x1)
 <contact>Kundan Singh</contact>
 
 Additionally, the XMLList defines certain arithmetic style operations to manipulate the
 data or list.
->>> print x1 + XML('<desc/>')
+>>> print(x1 + XML('<desc/>'))
 <contact>Kundan Singh</contact><desc />
->>> print x1 + x1
+>>> print(x1 + x1)
 <contact>Kundan Singh</contact><contact>Kundan Singh</contact>
->>> print x1 + 'something'
+>>> print(x1 + 'something')
 <contact>Kundan Singh</contact>something
 
->>> x1 += XML('<desc/>'); print x1                        # append tag
+>>> x1 += XML('<desc/>'); print(x1)                        # append tag
 <contact>Kundan Singh</contact><desc />
->>> x1 |= XML('<desc/>'); x1 |= XML('<desc type="1"/>'); x1 |= XML('<info/>'); print x1 # overwrite or append tag
+>>> x1 |= XML('<desc/>'); x1 |= XML('<desc type="1"/>'); x1 |= XML('<info/>'); print(x1) # overwrite or append tag
 <contact>Kundan Singh</contact><desc type="1" /><info />
->>> x1 -= XML('<info/>'); print x1                        # remove if tag is present
+>>> x1 -= XML('<info/>'); print(x1)                        # remove if tag is present
 <contact>Kundan Singh</contact><desc type="1" />
->>> x1 ^= XML('<desc/>'); x1 ^= XML('<info/>'); print x1; # append if tag not already present, else don't overwrite
+>>> x1 ^= XML('<desc/>'); x1 ^= XML('<info/>'); print(x1); # append if tag not already present, else don't overwrite
 <contact>Kundan Singh</contact><desc type="1" /><info />
->>> x1 &= XML('<desc/>'); x1 &= XML('<info2/>'); print x1 # overwrite if tag already present, else don't append
+>>> x1 &= XML('<desc/>'); x1 &= XML('<info2/>'); print(x1) # overwrite if tag already present, else don't append
 <contact>Kundan Singh</contact><info /><desc />
 
 The XML namespaces are handled using the xmlns property. The namespaces attribute of the top-level XML element
 contains the list of namespace URI and their prefixes. The xmlns attribute is just the namespace URI. The namespace
 declaration might get moved from parent to child or vice-versa during various XML operations.
->>> x2 = XML('<a:node xmlns:a="private" xmlns:b="public"><a:child/><b:child/></a:node>'); print x2
+>>> x2 = XML('<a:node xmlns:a="private" xmlns:b="public"><a:child/><b:child/></a:node>'); print(x2)
 <node xmlns="private"><child /><child xmlns="public" /></node>
 '''
 
@@ -169,7 +169,7 @@ escape =lambda x: x.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt
 
 def ustr(value):
     '''Converts 'value' to utf-8 string using value's __str__ or unicode.
-    >>> print type (ustr(u'kundan')) == unicode, ustr(u'kundan') == ustr('kundan')
+    >>> print(type (ustr('kundan')) == str, ustr('kundan') == ustr('kundan'))
     True True
     '''
     if isinstance(value, str): return value
@@ -426,3 +426,4 @@ class _(object):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

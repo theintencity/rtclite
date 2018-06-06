@@ -177,7 +177,7 @@ class Timer(object):
     
     >>> class MyApp(object):
     ...     def timedout(self, timer):
-    ...         print 'timer %r triggered'%(timer,)
+    ...         print('timer %r triggered'%(timer,))
     >>> myapp = MyApp()
     
     Create a timer object from the Timer sub-class.
@@ -543,3 +543,4 @@ if __name__ == '__main__':
         _test_RegistryResolve()
     _test_ColorizingStreamHandler()
     _test_multitask_Timer()
+

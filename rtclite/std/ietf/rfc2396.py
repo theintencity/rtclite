@@ -60,19 +60,19 @@ class URI(object):
     Attributes and items such as scheme, user, password, host, port, 
     param[name], header[index], give various parts of the URI.
     
-    >>> print URI('sip:kundan@example.net')
+    >>> print(URI('sip:kundan@example.net'))
     sip:kundan@example.net
-    >>> print URI('sip:kundan:passwd@example.net:5060;transport=udp;lr?name=value&another=another')
+    >>> print(URI('sip:kundan:passwd@example.net:5060;transport=udp;lr?name=value&another=another'))
     sip:kundan:passwd@example.net:5060;lr;transport=udp?name=value&another=another
-    >>> print URI('sip:192.1.2.3:5060')
+    >>> print(URI('sip:192.1.2.3:5060'))
     sip:192.1.2.3:5060
-    >>> print URI("sip:kundan@example.net") == URI("sip:Kundan@Example.NET")
+    >>> print(URI("sip:kundan@example.net") == URI("sip:Kundan@Example.NET"))
     True
-    >>> print 'empty=', URI()
+    >>> print('empty=', URI())
     empty= 
-    >>> print URI('tel:+1-212-9397063')
+    >>> print(URI('tel:+1-212-9397063'))
     tel:+1-212-9397063
-    >>> print URI('sip:kundan@192.1.2.3:5060').hostPort
+    >>> print(URI('sip:kundan@192.1.2.3:5060').hostPort)
     ('192.1.2.3', 5060)
     '''
     
@@ -150,11 +150,11 @@ class Address(object):
     >>> a3 = Address('"Kundan Singh" <sip:kundan@example.net>   ')
     >>> a4 = Address('<sip:kundan@example.net>')
     >>> a5 = Address('sip:kundan@example.net')
-    >>> print str(a1) == str(a2) and str(a1) == str(a3) and str(a1.uri) == str(a4.uri) and str(a1.uri) == str(a5.uri)
+    >>> print(str(a1) == str(a2) and str(a1) == str(a3) and str(a1.uri) == str(a4.uri) and str(a1.uri) == str(a5.uri))
     True
-    >>> print a1
+    >>> print(a1)
     "Kundan Singh" <sip:kundan@example.net>
-    >>> print a1.displayable
+    >>> print(a1.displayable)
     Kundan Singh
     '''
     # regular expression for Address syntax.
@@ -208,3 +208,4 @@ class Address(object):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

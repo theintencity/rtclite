@@ -50,7 +50,7 @@ def router(routes):
     >>> r = router(routes)   # create the router using these routes
     >>> # and test using the following code
     >>> env, start_response = {'REQUEST_METHOD': 'GET', 'PATH_INFO': '/xml/files', 'SCRIPT_NAME': '', 'QUERY_STRING': ''}, lambda x,y: (x, y)
-    >>> print(r(env, start_response))
+    >>> print((r(env, start_response)))
     <files><type>text/xml</type><file>somefile.txt</file></files>
     '''
     if isinstance(routes, dict) or hasattr(routes, 'items'): routes = iter(routes.items())
@@ -240,7 +240,7 @@ def resource(func):
     ...    return locals()
     >>> # test using the following code
     >>> env, start_response = {'REQUEST_METHOD': 'GET', 'PATH_INFO': '/xml/files', 'SCRIPT_NAME': '', 'QUERY_STRING': ''}, lambda x,y: (x, y)
-    >>> print(files(env, start_response))
+    >>> print((files(env, start_response)))
     ['<files><file>myfile.txt</file></files>']
     '''
     method_funcs = func()
@@ -309,7 +309,7 @@ class Model(dict):
     ... user
     ...     id        integer        primary key
     ...     name      text
-    ...
+    ... 
     ... files
     ...     id        integer        primary key
     ...     name      text           not null
@@ -326,9 +326,9 @@ class Model(dict):
     >>> u1 = m1['user'](*row)
     >>> print(u1)
     'id'=1, 'name'=u'Kundan Singh'
-    >>> print(u1._list_())
+    >>> print((u1._list_()))
     ('user', (('id', 1), ('name', u'Kundan Singh')))
-    >>> print('table=%r attrs=%r properties=%r'%(u1.__class__._table_, u1.__class__._attrs_, u1.__dict__))
+    >>> print(('table=%r attrs=%r properties=%r'%(u1.__class__._table_, u1.__class__._attrs_, u1.__dict__)))
     table='user' attrs=['id', 'name'] properties={'id': 1, 'name': u'Kundan Singh'}
     '''
     def __init__(self, conn=None):
@@ -520,3 +520,4 @@ if __name__ == '__main__':
     logging.basicConfig()
     logger.setLevel(logging.CRITICAL)
     doctest.testmod()
+

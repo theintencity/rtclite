@@ -482,7 +482,7 @@ def _str2address(value, hasPort=True):
     @param value the binary string representing ip (if hasPort is False) or ip plus port (if hasPort is True).
     @param hasPort if False, then value must not have port. It returns port as 0.
     
-    >>> print _str2address('\x7f\x00\x00\x01\x00\x80')
+    >>> print(_str2address('\x7f\x00\x00\x01\x00\x80'))
     ('127.0.0.1', 128)
     '''
     if hasPort:
@@ -504,7 +504,7 @@ def _address2str(value, hasPort=True):
     @param value the tuple of length 2 of the form ('dotted-ip', port)
     @param hasPort if False, do not represent port in the returned string. The value must always have port.
     
-    >>> print _address2str(('127.0.0.1', 128))
+    >>> print(_address2str(('127.0.0.1', 128)))
     \x7f\x00\x00\x01\x00\x80
     '''
     host, port = value
@@ -2580,3 +2580,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     logger.info('%s Flash Server Stops', time.asctime())
+

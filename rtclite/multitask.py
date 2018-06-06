@@ -54,7 +54,7 @@ two unrelated tasks to run concurrently:
 
   >>> def printer(message):
   ...     while True:
-  ...         print message
+  ...         print(message)
   ...         yield
   ... 
   >>> multitask.add(printer('hello'))
@@ -96,13 +96,13 @@ value(s) to the StopIteration constructor.  An unhandled exception
 raised within a child task is propagated to its parent.  For example:
 
   >>> def parent():
-  ...     print (yield return_none())
-  ...     print (yield return_one())
-  ...     print (yield return_many())
+  ...     print((yield return_none()))
+  ...     print((yield return_one()))
+  ...     print((yield return_many()))
   ...     try:
   ...         yield raise_exception()
-  ...     except Exception, e:
-  ...         print 'caught exception: %s' % e
+  ...     except Exception as e:
+  ...         print('caught exception: %s' % e)
   ... 
   >>> def return_none():
   ...     yield
@@ -1294,3 +1294,4 @@ if __name__ == '__main__':
     t.run()
 
     assert not(t.has_runnable() or t.has_io_waits() or t.has_timeouts())
+

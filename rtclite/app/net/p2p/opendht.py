@@ -76,3 +76,4 @@ if __name__ == '__main__':
     print(get('kundan'))
     print(remove('kundan', 'Munna', 'donttell'))
     print(get('kundan'))
+

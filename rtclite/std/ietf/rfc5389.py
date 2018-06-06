@@ -23,7 +23,7 @@ as applicable.
 
 To print readable message, use the "repr" function or "%r" in format-string.
 
->>> print repr(msg)
+>>> print(repr(msg))
 <Message method=1 type=0 tid='5JXY60DkLznI'>
    <Attribute type='USERNAME' value='YjY3NjQzNjMtYTY0:f+oIZIKgGwzJ/vRj' />
    <Attribute type='ICE-CONTROLLED' value='l\xb1\xb8\xc1\xach\x8a\xdc' />
@@ -36,7 +36,7 @@ To parse a message, simply create the Message object with the raw data.
 
 >>> raw = '\x01\x01\x00,!\x12\xa4BIOeRVeE1jN7w\x00 \x00\x08\x00\x01\xf5\x8f\xe1\xba\xa5K\x00\x08\x00\x14\xb5\xbcgi\xa5\x98J7\xa7\xc7\x0eV\x7f\xfeJ=\xd1.x{\x80(\x00\x04\xfc\xces\xdb'
 >>> msg = Message(value=raw)
->>> print repr(msg)
+>>> print(repr(msg))
 <Message method=1 type=2 tid='IOeRVeE1jN7w'>
    <Attribute type='XOR-MAPPED-ADDRESS' value='\x00\x01\xf5\x8f\xe1\xba\xa5K' />
    <Attribute type='MESSAGE-INTEGRITY' value='\xb5\xbcgi\xa5\x98J7\xa7\xc7\x0eV\x7f\xfeJ=\xd1.x{' />
@@ -48,27 +48,27 @@ address property and for XOR'ed address use the xorAddress property to extract i
 These read-only properties return the tuple (type, ip, port) where type is one of socket.SOCK_DGRAM
 or socket.SOCK_STERAM, ip is a string, and port is an int in host-order.
 
->>> print msg.attrs[0].xorAddress
+>>> print(msg.attrs[0].xorAddress)
 (2, '192.168.1.9', 54429)
 
 If the packet has message-integrity and fingerprint, you can verify them. The verification function
 returns True (successful), False (failed) or None (no such attribute found).
 
->>> print msg.verifyIntegrity(password='gb8cIbvzjRiyv+Dfb/kDBKTN')
+>>> print(msg.verifyIntegrity(password='gb8cIbvzjRiyv+Dfb/kDBKTN'))
 True
->>> print msg.verifyFingerprint()
+>>> print(msg.verifyFingerprint())
 True
 
 
 >>> raw = '\x01\x01\x00,!\x12\xa4B\xfdeA\xaaF[0\xdc\xbb\x14<t\x00 \x00\x08\x00\x01\xf74\xe1\xba\xa5J\x00\x08\x00\x14\xafO\xb2}z\xdf$\x92\x8e,e\x90\\\x9b\xa6&\xa9\xa4\xfb\x85\x80(\x00\x04aEv{'
 >>> msg = Message(value=raw)
->>> print repr(msg)
+>>> print(repr(msg))
 <Message method=1 type=2 tid='\xfdeA\xaaF[0\xdc\xbb\x14<t'>
    <Attribute type='XOR-MAPPED-ADDRESS' value='\x00\x01\xf74\xe1\xba\xa5J' />
    <Attribute type='MESSAGE-INTEGRITY' value='\xafO\xb2}z\xdf$\x92\x8e,e\x90\\\x9b\xa6&\xa9\xa4\xfb\x85' />
    <Attribute type='FINGERPRINT' value='aEv{' />
 </Message>
->>> print msg.verifyIntegrity(password='/QT5Xz7pXkht6WQg0gn9/4G8')
+>>> print(msg.verifyIntegrity(password='/QT5Xz7pXkht6WQg0gn9/4G8'))
 True
 '''
 
@@ -172,3 +172,4 @@ if __name__ == "__main__":
     doctest.testmod()
     
     
+
