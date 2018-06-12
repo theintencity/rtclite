@@ -3,16 +3,16 @@
 '''
 Define the RTP static payload types as per RFC 3551. type and desc are two main functions.
 
->>> print type('GSM/8000')
+>>> print(type('GSM/8000'))
 3
->>> print desc(3)
+>>> print(desc(3))
 ('GSM', 8000, 1, 3, 'GSM/8000')
 
 >>> for x in range(0, len(_types)):
 ...    name, rate, count, pt, d = desc(x)
 ...    assert(pt == x)
 ...    if d: assert(x == type(d))
-...    if d: print '%d=>%s'%(pt, d),     
+...    if d: print('%d=>%s'%(pt, d), end=' ')     
 0=>PCMU/8000 3=>GSM/8000 4=>G723/8000 5=>DVI4/8000 6=>DVI4/16000 7=>LPC/8000 8=>PCMA/8000 9=>G722/8000 10=>L16/44100/2 11=>L16/44100 12=>QCELP/8000 13=>CN/8000 14=>MPA/90000 15=>G728/8000 16=>DVI4/11025 17=>DVI4/22050 18=>G729/8000 25=>CelB/90000 26=>JPEG/90000 28=>nv/90000 31=>H261/90000 32=>MPV/90000 33=>MP2T/90000 34=>H263/90000
 '''
 
@@ -32,7 +32,7 @@ def _type2desc(t):
     else:
         return (None, None, None, t, None)
 
-_desc   = map(_type2desc, range(0, len(_types))) 
+_desc   = list(map(_type2desc, list(range(0, len(_types))))) 
 _lowers = [(x and x.lower() or None) for x in _types]
 
 # return the type (int) for the description ('name/rate' or 'name/rate/count') or 

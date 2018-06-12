@@ -275,5 +275,6 @@ if __name__ == "__main__":
         serve_forever(options)
     except KeyboardInterrupt:
         logger.debug('interrupted, exiting')
-    except RuntimeError, e:
+    except RuntimeError as e:
         logger.error(str(e))
+

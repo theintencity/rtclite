@@ -8,8 +8,8 @@ The SDP offer/answer model for unicast sessions.
 Suppose the offerer wants to support PCMU and PCMA audio and H261 video, it can
 use the following code to generate the offer SDP.
 
->>> from rfc4566 import SDP, attrs as format
->>> from rfc3264 import createOffer, createAnswer
+>>> from .rfc4566 import SDP, attrs as format
+>>> from .rfc3264 import createOffer, createAnswer
 
 >>> audio = SDP.media(media='audio', port='9000')
 >>> audio.fmt = [format(pt=0, name='PCMU', rate=8000), format(pt=8, name='PCMA', rate=8000)]
@@ -19,14 +19,14 @@ use the following code to generate the offer SDP.
 >>>
 >>> offer.o.sessionid = offer.o.version = 1192000146 # so that testing doesn't depend on time
 >>> offer.o.address = '192.168.1.66'                    # or IP address
->>> print str(offer).replace('\\r', '\\\\r').replace('\\n', '\\\\n')
+>>> print(str(offer).replace('\\r', '\\\\r').replace('\\n', '\\\\n'))
 v=0\\r\\no=- 1192000146 1192000146 IN IP4 192.168.1.66\\r\\ns=-\\r\\nt=0 0\\r\\nm=audio 9000 RTP/AVP 0 8\\r\\na=rtpmap:0 PCMU/8000\\r\\na=rtpmap:8 PCMA/8000\\r\\nm=video 9002 RTP/AVP 31\\r\\na=rtpmap:31 H261/90000\\r\\n
 
 When the offer is received by the answerer, it can use the following code to generate
 the answer. Suppose the answerer wants to support PCMU and GSM audio and no video.
 
->>> from rfc4566 import SDP, attrs as format
->>> from rfc3264 import createAnswer
+>>> from .rfc4566 import SDP, attrs as format
+>>> from .rfc3264 import createAnswer
 
 >>> audio = SDP.media(media='audio', port='8020')
 >>> audio.fmt = [format(pt=0), format(pt=3)]  # for known payload types, description is optional
@@ -34,7 +34,7 @@ the answer. Suppose the answerer wants to support PCMU and GSM audio and no vide
 >>>
 >>> answer.o.sessionid = answer.o.version = 1192000146 
 >>> answer.o.address = '192.168.1.66'
->>> print str(answer).replace('\\r', '\\\\r').replace('\\n', '\\\\n')
+>>> print(str(answer).replace('\\r', '\\\\r').replace('\\n', '\\\\n'))
 v=0\\r\\no=- 1192000146 1192000146 IN IP4 192.168.1.66\\r\\ns=-\\r\\nt=0 0\\r\\nm=audio 8020 RTP/AVP 0\\r\\na=rtpmap:0 PCMU/8000\\r\\nm=video 0 RTP/AVP 31\\r\\na=rtpmap:31 H261/90000\\r\\n
 
 Suppose the offerer wants to change the offer (e.g., using SIP re-INVITE) by removing
@@ -98,7 +98,7 @@ def createAnswer(streams, offer, **kwargs):
                         or str(fm.name).lower() == str(fy.name).lower() and fm.rate == fy.rate and fm.count == fy.count: # we don't match the params
                             found.append((fy, fm)); break
                 if found: # we found some matching formats, put them in 
-                    my.fmt = map(lambda x: x[0], found) # use remote's fy including fy.pt
+                    my.fmt = [x[0] for x in found] # use remote's fy including fy.pt
                 else:
                     my.fmt = [format(pt=0)] # no match in formats, but matched media, must put a format with payload type 0
                     my.port = 0             #   and reset the port.
@@ -122,3 +122,4 @@ def createAnswer(streams, offer, **kwargs):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

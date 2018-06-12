@@ -25,7 +25,7 @@ import logging, os
 
 class ColorizingStreamHandler(logging.StreamHandler):
     # color names to indices
-    color_map = dict(zip('black red green yello blue magenta cyan white'.split(), range(8)))
+    color_map = dict(list(zip('black red green yello blue magenta cyan white'.split(), list(range(8)))))
     #levels to (background, foreground, bold/intense)
     level_map = { logging.DEBUG: (None, 'blue', True), logging.INFO: (None, 'white', False),
         logging.WARNING: (None, 'yellow', True), logging.ERROR: (None, 'red', True),
@@ -177,7 +177,7 @@ class Timer(object):
     
     >>> class MyApp(object):
     ...     def timedout(self, timer):
-    ...         print 'timer %r triggered'%(timer,)
+    ...         print('timer %r triggered'%(timer,))
     >>> myapp = MyApp()
     
     Create a timer object from the Timer sub-class.
@@ -260,16 +260,16 @@ def _test_multitask_Timer():
     '''
     class App(object):
         def timedout(self, timer):
-            print int(time.time()), 'timedout', timer
+            print(int(time.time()), 'timedout', timer)
             if timer == self.t2 and self.t1 is not None:
-                print int(time.time()), 'stopping', self.t1
+                print(int(time.time()), 'stopping', self.t1)
                 self.t1.stop()
                 self.t1 = None
                 timer.start(3)
     app = App()
     t1 = multitask_Timer(app)
     t2 = multitask_Timer(app)
-    print int(time.time()), 'starting', t1, t2
+    print(int(time.time()), 'starting', t1, t2)
     t1.start(4)
     t2.start(2)
     app.t1 = t1
@@ -366,7 +366,7 @@ class MessageCore():
         # TODO: need to change this to allow signaling all waiting get(), but not multiple times.
         self.cond.acquire()
         now = time.time()
-        self.pending = filter(lambda x: x[1]<=now, self.pending) # remove expired ones
+        self.pending = [x for x in self.pending if x[1]<=now] # remove expired ones
         self.pending.append((elem, now+timeout))
         self.cond.notifyAll()
         self.cond.release()
@@ -381,8 +381,8 @@ class MessageCore():
         now, remaining = time.time(), (timeout or 0)-(time.time()-start)# in case we took long time to acquire the lock
         
         while timeout is None or remaining>=0:
-            self.pending = filter(lambda x: x[1]<=now, self.pending) # remove expired ones
-            found = filter(lambda x: criteria(x[0]), self.pending)   # check any matching criteria
+            self.pending = [x for x in self.pending if x[1]<=now] # remove expired ones
+            found = [x for x in self.pending if criteria(x[0])]   # check any matching criteria
             if found: # found in pending, return it.
                 self.pending.remove(found[0]) # first remove that item
                 self.cond.release()
@@ -405,7 +405,7 @@ class Dispatcher(object):
     
     def attach(self, event, func):
         '''Attach an event which is a lambda function taking one argument, to the event handler func.'''
-        if event in self._handler.iterkeys(): 
+        if event in iter(self._handler.keys()): 
             if func not in self._handler[event]: self._handler[event].append(func)
         else: self._handler[event] = [func]
     def detach(self, event, func):
@@ -420,7 +420,7 @@ class Dispatcher(object):
                     if len(self._handler[event]) == 0: del self._handler[event]
     def dispatch(self, data):
         '''Dispatch a given data to event handlers if the event lambda function returns true.'''
-        for f in sum([y[1] for y in filter(lambda x: x[0](data), self._handler.iteritems())], []): 
+        for f in sum([y[1] for y in [x for x in iter(self._handler.items()) if x[0](data)]], []): 
             f(data)
             # TODO: ignore the exception 
                 
@@ -432,7 +432,7 @@ class Dispatcher(object):
 #--------------------------------------
 
 if os.name == 'nt':
-    import string, _winreg
+    import string, winreg
 
     # Python Cookbook: 
     # http://my.safaribooksonline.com/0596001673/pythoncook-CHP-7-SECT-10
@@ -462,75 +462,75 @@ if os.name == 'nt':
         (each of which has a different registry layout for nameservers!) """
     
         nameservers=[]
-        x=_winreg.ConnectRegistry(None,_winreg.HKEY_LOCAL_MACHINE)
+        x=winreg.ConnectRegistry(None,winreg.HKEY_LOCAL_MACHINE)
         try:
-            y= _winreg.OpenKey(x,
+            y= winreg.OpenKey(x,
              r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters")
         except EnvironmentError: # so it isn't NT/2000/XP
             # Windows ME, perhaps?
             try: # for Windows ME
-                y = _winreg.OpenKey(x,
+                y = winreg.OpenKey(x,
                   r"SYSTEM\CurrentControlSet\Services\VxD\MSTCP")
-                nameserver, dummytype = _winreg.QueryValueEx(y,'NameServer')
+                nameserver, dummytype = winreg.QueryValueEx(y,'NameServer')
                 if nameserver and not (nameserver in nameservers):
                     nameservers.extend(stringdisplay(nameserver))
             except EnvironmentError:
                 pass # Must be another Windows dialect, so who knows?
             return nameservers
     
-        nameserver = _winreg.QueryValueEx(y,"NameServer")[0]
+        nameserver = winreg.QueryValueEx(y,"NameServer")[0]
         if nameserver:
             nameservers = [nameserver]
-        _winreg.CloseKey(y)
+        winreg.CloseKey(y)
         try: # for win2000
-            y = _winreg.OpenKey(x, r"SYSTEM\CurrentControlSet\Services\Tcpip"
+            y = winreg.OpenKey(x, r"SYSTEM\CurrentControlSet\Services\Tcpip"
                                    r"\Parameters\DNSRegisteredAdapters")
             for i in range(1000):
                 try:
-                    n = _winreg.EnumKey(y,i)
-                    z = _winreg.OpenKey(y,n)
-                    dnscount,dnscounttype = _winreg.QueryValueEx(z,
+                    n = winreg.EnumKey(y,i)
+                    z = winreg.OpenKey(y,n)
+                    dnscount,dnscounttype = winreg.QueryValueEx(z,
                         'DNSServerAddressCount')
-                    dnsvalues,dnsvaluestype = _winreg.QueryValueEx(z,
+                    dnsvalues,dnsvaluestype = winreg.QueryValueEx(z,
                         'DNSServerAddresses')
                     nameservers.extend(binipdisplay(dnsvalues))
-                    _winreg.CloseKey(z)
+                    winreg.CloseKey(z)
                 except EnvironmentError:
                     break
-            _winreg.CloseKey(y)
+            winreg.CloseKey(y)
         except EnvironmentError:
             pass
     
         try: # for XP
-            y = _winreg.OpenKey(x,
+            y = winreg.OpenKey(x,
              r"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces")
             for i in range(1000):
                 try:
-                    n = _winreg.EnumKey(y,i)
-                    z = _winreg.OpenKey(y,n)
+                    n = winreg.EnumKey(y,i)
+                    z = winreg.OpenKey(y,n)
                     try:
-                        nameserver,dummytype = _winreg.QueryValueEx(z,'NameServer')
+                        nameserver,dummytype = winreg.QueryValueEx(z,'NameServer')
                         if nameserver and not (nameserver in nameservers):
                             nameservers.extend(stringdisplay(nameserver))
                         if not nameserver: # try DhcpNameServer
-                            nameserver,dummytype = _winreg.QueryValueEx(z,'DhcpNameServer')
+                            nameserver,dummytype = winreg.QueryValueEx(z,'DhcpNameServer')
                             if nameserver and not (nameserver in nameservers):
                                 nameservers.extend(stringdisplay(nameserver))
                     except EnvironmentError:
                         pass
-                    _winreg.CloseKey(z)
+                    winreg.CloseKey(z)
                 except EnvironmentError:
                     break
-            _winreg.CloseKey(y)
+            winreg.CloseKey(y)
         except EnvironmentError:
             # Print "Key Interfaces not found, just do nothing"
             pass
     
-        _winreg.CloseKey(x)
+        winreg.CloseKey(x)
         return nameservers
 
 def _test_RegistryResolve():
-    print "Name servers:", RegistryResolve()
+    print("Name servers:", RegistryResolve())
 
 
 #--------------------------------------
@@ -543,3 +543,4 @@ if __name__ == '__main__':
         _test_RegistryResolve()
     _test_ColorizingStreamHandler()
     _test_multitask_Timer()
+

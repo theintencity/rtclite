@@ -12,11 +12,11 @@ from distutils.core import setup
 from distutils.command.install import INSTALL_SCHEMES
 
 # Make the root for data file installations the same as Python code
-for scheme in INSTALL_SCHEMES.values():
+for scheme in list(INSTALL_SCHEMES.values()):
     scheme['data'] = scheme['purelib']
 
 NAME = "rtclite"
-VERSION = "2.0"
+VERSION = "3.0"
 
 DIST_DIR = "dist"
 FORMAT_TO_SUFFIX = { "zip": ".zip", "gztar": ".tar.gz", "bztar": ".tar.bz2", "ztar": ".tar.Z", "tar": ".tar" }
@@ -43,6 +43,7 @@ def invoke_setup(data_files=None):
               url="https://github.com/theintencity/rtclite", license="LICENSE",
               long_description=open("README.md").read(),
               packages=packages, package_data={"std": ["specs/*"]},
+              python_requires=">=3.3",
               data_files=data_files)
     finally:
         if data_files_file_created:

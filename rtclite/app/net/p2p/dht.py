@@ -49,6 +49,7 @@ from .... import multitask
 from ....common import getlocaladdr
 from ...sec.dummycrypto import sign, verify, PublicKey, PrivateKey, extractPublicKey
 from ....std.ietf import rfc3489 as util # we need _str2addr and addr2str.
+from functools import reduce
 
 
 #===============================================================================
@@ -57,7 +58,7 @@ from ....std.ietf import rfc3489 as util # we need _str2addr and addr2str.
 # the number space from 160-bits to 128 or 256 bits.
 #===============================================================================
 
-H     = lambda x: long(hashlib.sha1(x).hexdigest(),16) # the hash function used in this implementation of the DHT.
+H     = lambda x: int(hashlib.sha1(x).hexdigest(),16) # the hash function used in this implementation of the DHT.
 Hsize = hashlib.sha1('something').digest_size # this is the global size of the hash function result.
 Hmod  = 2**(Hsize*8) # modulus for the hash space, e.g., for SHA1 it is 2*160 in binary.
 
@@ -68,10 +69,10 @@ logger = logging.getLogger("dht")
 #===============================================================================
 # Some utility functions such as random number, distance, and bigint conversion
 #===============================================================================
-bin2int = lambda x: long(''.join('%02x'%(ord(a)) for a in x), 16)
-int2bin = lambda x: (''.join(chr(a) for a in [((x>>c)&0x0ff) for c in xrange((Hsize-1)*8,-8,-8)])) if x is not None else '\x00'*Hsize
+bin2int = lambda x: int(''.join('%02x'%(ord(a)) for a in x), 16)
+int2bin = lambda x: (''.join(chr(a) for a in [((x>>c)&0x0ff) for c in range((Hsize-1)*8,-8,-8)])) if x is not None else '\x00'*Hsize
 dig2int = lambda x, b, d=0: reduce(lambda m, n: (m << b) + n, x, 0)
-int2dig = lambda x, b, d: [int((x>>c)&((1<<b)-1)) for c in xrange(b*(d-1), -b, -b)]
+int2dig = lambda x, b, d: [int((x>>c)&((1<<b)-1)) for c in range(b*(d-1), -b, -b)]
 
 distance = lambda a,b: min((Hmod+b-a)%Hmod, (Hmod+a-b)%Hmod)
 inrange = lambda L, H, a: L <= (a if L<=a else a+Hmod) <= (H if L<=H else H+Hmod) # whether a is in range [L,H] modulo
@@ -80,19 +81,19 @@ randomNonce = lambda: random.randint(0, Hmod)
 
 def _testUtil():
     '''
-    >>> print bin2int('\x22\x22'), ','.join(str(ord(a)) for a in int2bin(8738)) # 0x22=34, number=34*256+34
+    >>> print(bin2int('\x22\x22'), ','.join(str(ord(a)) for a in int2bin(8738))) # 0x22=34, number=34*256+34
     8738 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,34,34
-    >>> print dig2int([0x22, 0x22], 8, 2), int2dig(8738, 8, 4)
+    >>> print(dig2int([0x22, 0x22], 8, 2), int2dig(8738, 8, 4))
     8738 [0, 0, 34, 34]
-    >>> print distance(10, 0), distance(0, 10), distance(2**160-10, 0), distance(0, 2**160-10) # Hmod is 2**160 by default
+    >>> print(distance(10, 0), distance(0, 10), distance(2**160-10, 0), distance(0, 2**160-10)) # Hmod is 2**160 by default
     10 10 10 10
-    >>> print inrange(10, 2**160-10, 5), inrange(2**160-10, 10, 5)
+    >>> print(inrange(10, 2**160-10, 5), inrange(2**160-10, 10, 5))
     False True
     '''
 
 def find(comp, seq):
     '''Find an element's index in the sequence, or -1 if not found, using the comp as the function to compare.
-    >>> print find(lambda x: x==10, [8, 9, 10, 11])
+    >>> print(find(lambda x: x==10, [8, 9, 10, 11]))
     2
     '''  
     index = 0
@@ -120,11 +121,11 @@ _attrs = '''
     msg: payload
     '''
 # TODO: can't use the attribute name as 'keys' because it is a built in method. Hence used keyss
-_attrName = map(lambda w: (w[0].strip(), map(str.strip, w[1].split(','))), map(lambda z: z.split(':'), filter(lambda y: y, map(str.strip, _attrs.split('\n')))))
-_attrType = dict(sum(map(lambda x: map(lambda y: (y, x[0]), x[1]), _attrName), [])) # dict of attr=>type
-_attrList = sum(map(lambda x: x[1], _attrName), []) # list of all attr
-_request  = map(str.strip, 'Ack, Discover, Proxy, Join, RoutingTable, LeafSet, Lookup, Neighbor, Ping, Route, Replicate, ReplicaSet, Hash, Keys, Data, Put, Get, Connect, Datagram'.split(','))
-_type     = map(str.strip, 'Request, Response, Indication, Error'.split(','))
+_attrName = [(w[0].strip(), list(map(str.strip, w[1].split(',')))) for w in [z.split(':') for z in [y for y in map(str.strip, _attrs.split('\n')) if y]]]
+_attrType = dict(sum([[(y, x[0]) for y in x[1]] for x in _attrName], [])) # dict of attr=>type
+_attrList = sum([x[1] for x in _attrName], []) # list of all attr
+_request  = list(map(str.strip, 'Ack, Discover, Proxy, Join, RoutingTable, LeafSet, Lookup, Neighbor, Ping, Route, Replicate, ReplicaSet, Hash, Keys, Data, Put, Get, Connect, Datagram'.split(',')))
+_type     = list(map(str.strip, 'Request, Response, Indication, Error'.split(',')))
 
 def _attr2bin(attr):
     '''Convert the attribute name to binary 16-bit value.'''
@@ -132,9 +133,9 @@ def _attr2bin(attr):
     except: pass # throws an error if not found in _attrList
     try:
         r, t = attr.split(':'); r, t = _request.index(r), _type.index(t)
-        if r<0 or t<0: raise ValueError, 'invalid attribute', attr
+        if r<0 or t<0: raise ValueError('invalid attribute').with_traceback(attr)
         return struct.pack('!H', ((t<<12) & 0x7000) | (r & 0x0fff))
-    except: raise ValueError, 'invalid attribute name %r'%attr
+    except: raise ValueError('invalid attribute name %r'%attr)
 
 def _bin2attr(value):
     '''Convert the binary 16-bit value to the attribute name.
@@ -145,7 +146,7 @@ def _bin2attr(value):
     try:
         if value & 0x8000: return _attrList[value & 0x7fff]
         else: return _request[value & 0x0fff] + ':' + _type[(value & 0x7000) >> 12]
-    except: raise ValueError, 'invalid attribute value 0x%x'%value
+    except: raise ValueError('invalid attribute value 0x%x'%value)
 
 class Message(dict):
     '''A generic message container that can be used in various scenarios and allows attribute
@@ -154,16 +155,16 @@ class Message(dict):
     instead of this custom binary format.
     
     >>> m = Message(name='Join:Request', path=[])
-    >>> print repr(Message(raw=str(m)))
+    >>> print(repr(Message(raw=str(m))))
     <Message name=Join:Request path=[]>
     '''
     def __init__(self, raw=None, **kwargs):
         dict.__init__(self)
         if not raw:
-            for n,v in kwargs.items(): 
+            for n,v in list(kwargs.items()): 
                 if v is not None: self[n] = v
         else: # decode the message
-            if struct.unpack('!H', raw[:2])[0] != version: raise ValueError, 'invalid version' 
+            if struct.unpack('!H', raw[:2])[0] != version: raise ValueError('invalid version') 
             self.decode(raw[2:]) 
     def __str__(self):
         '''Construct a formatted message, where each element is recursively formatted 
@@ -171,7 +172,7 @@ class Message(dict):
         return struct.pack('!H', version) + self.encode()
     def __repr__(self):
         '''Representation of this msg is just the dictionary with a prefix Message.'''
-        return '<Message name=%s %s>'%(self.name, ' '.join(map(lambda x: '%s=%r'%(x[0],x[1]), filter(lambda y: y[0] !='name', self.items()))))
+        return '<Message name=%s %s>'%(self.name, ' '.join(['%s=%r'%(x[0],x[1]) for x in [y for y in list(self.items()) if y[0] !='name']]))
     def __getattr__(self, name): return self.get(name, None)
     def dup(self): return Message(str(self))
     
@@ -179,7 +180,7 @@ class Message(dict):
         '''Encode this Message into a binary format.'''
         type = _attr2bin(self.name)
         result = ''
-        for name, elem in filter(lambda x: x[0] != 'name', self.items()):
+        for name, elem in [x for x in list(self.items()) if x[0] != 'name']:
             k = _attr2bin(name); t = _attrType[name]
             if t == 'bool': value = struct.pack('!B', elem and 1 or 0)
             elif t == 'int32': value = struct.pack('!I', elem)
@@ -194,9 +195,9 @@ class Message(dict):
                 for e in elem:
                     if name in ('nodes', 'neighbors', 'leafset', 'path'): v = str(e)
                     elif name in ('keyss', 'vals'): v = str(e)
-                    else: raise ValueError, 'invalid list type', name
+                    else: raise ValueError('invalid list type').with_traceback(name)
                     value += struct.pack('!H', len(v)) + v
-            else: raise ValueError, 'invalid element type %r'%t
+            else: raise ValueError('invalid element type %r'%t)
             logger.debug('name=%r elem=%r value=%r len=%r k=%r', name, elem, value, struct.pack('!H', len(value)), k)
             result += k + struct.pack('!H', len(value)) + value
         return type + struct.pack('!H', len(result)) + result
@@ -217,21 +218,21 @@ class Message(dict):
             elif t == 'msg': self[name] = Message(raw=elem)
             elif t == 'str':
                 l = struct.unpack('!H', elem[:2])[0]; elem = elem[2:2+l]
-                self[name] = unicode(elem)
+                self[name] = str(elem)
             elif t == 'bin':
                 l = struct.unpack('!H', elem[:2])[0]; elem = elem[2:2+l] 
                 self[name] = elem if name in ('Kp', 'sigma', 'value') else (Key(value=elem) if name == 'key' else Value(value=elem))
             elif t == 'list':
                 count, elem= struct.unpack('!H', elem[:2])[0], elem[2:]
                 self[name] = [] # initialize as empty list
-                for i in xrange(0, count):
+                for i in range(0, count):
                     l = struct.unpack('!H', elem[:2])[0]
                     v, elem = elem[2:2+l], elem[2+l:]
                     if name in ('nodes', 'neighbors', 'leafset', 'path'): self[name].append(Node(value=v))
                     elif name in ('keyss'): self[name].append(Key(value=v))
                     elif name in ('vals'): self[name].append(Value(raw=v))
-                    else: raise ValueError, 'invalid list name', name 
-            else: raise ValueError, 'invalid element type %r'%t
+                    else: raise ValueError('invalid list name').with_traceback(name) 
+            else: raise ValueError('invalid element type %r'%t)
 
 #===============================================================================
 # A network abstraction that is used for all communication. It also encapsulates
@@ -259,7 +260,7 @@ class Node(object):
             #print self.ip, self.port
         else: # build using individual components
             for n in ('ip', 'port', 'type', 'guid'):
-                exec 'self.%s = kwargs.get("%s", None)'%(n,n)
+                exec('self.%s = kwargs.get("%s", None)'%(n,n))
         # since node is immutable, construct str, repr and hash output beforehand.
         self._str = struct.pack('!4sHB%ds'%Hsize, ''.join([chr(int(x)) for x in self.ip.split('.')]), self.port, self.type, int2bin(self.guid))
         self._repr = '<node ip=%r port=%r type=%r guid=%r>'%(self.ip, self.port, self.type, self.guid)
@@ -321,7 +322,7 @@ class Network(object):
             lastnode = Node(ip=remote[0], port=remote[1], type=socket.SOCK_DGRAM, guid=H(remote[0]+':'+str(remote[1])))
             raise StopIteration((data, lastnode))
         else:
-            raise RuntimeError, 'Invalid socket'
+            raise RuntimeError('Invalid socket')
         
     def start(self):
         if self.gen is None: 
@@ -378,7 +379,7 @@ def testNetwork():
             yield n1.send(msg=Message(name='Join:Request'), node=n2.node)
             msg = yield n2.get(lambda x: x.name=='Join:Request', timeout=2)
         except:
-            print 'testNetwork() didnot pass'
+            print('testNetwork() didnot pass')
         multitask.completed = True
     multitask.add(sendrecv())
     while not multitask.completed: 
@@ -405,13 +406,13 @@ class RoutingTable(list):
         self.size, self.highestLevel, self.length = 0, -1, self.rows
         self.entry = entry = self.Entry(); entry.node = node; entry.latency = 0.0
         self.digits = self.guid2digits(node.guid)
-        for row in xrange(0, self.rows): # initialize the two-dimensional list (array)
-            self.append([entry if row==col else None for col in xrange(0, self.columns)]) 
+        for row in range(0, self.rows): # initialize the two-dimensional list (array)
+            self.append([entry if row==col else None for col in range(0, self.columns)]) 
         # print self.columns, self.rows, self.bitsPerDigit, self.digits
         
     def __repr__(self):
         '''Printable representation of the routing table.'''
-        entries = '\n  '+'\n  '.join(map(lambda x: 'Level: %d %s'%(x, '\n    '.join(map(lambda y: '[%d] %r'%(y, self[x][y].node), filter(lambda z: self[x][z] is not None, xrange(0, self.columns))))), xrange(0, self.highestLevel+1)))
+        entries = '\n  '+'\n  '.join(['Level: %d %s'%(x, '\n    '.join(['[%d] %r'%(y, self[x][y].node) for y in [z for z in range(0, self.columns) if self[x][z] is not None]])) for x in range(0, self.highestLevel+1)])
         return '<RoutingTable node=%r size=%r levels=%r highestLevel=%r %s>'%(self.node, self.size, self.rows, self.highestLevel, entries)
 
     def __contains__(self, node):
@@ -471,8 +472,8 @@ class RoutingTable(list):
             self.size = self.size - 1
             if first == self.highestLevel:
                 index = -1
-                for i in xrange(first, -1, -1):
-                    j = find(lambda y: self[i][y] and self[i][y] != self.entry, xrange(0, self.columns))
+                for i in range(first, -1, -1):
+                    j = find(lambda y: self[i][y] and self[i][y] != self.entry, range(0, self.columns))
                     if j>= 0: index = i; break
                 if index<0: self.highestLevel = 0 # not found, reduce the level
             return first
@@ -484,7 +485,7 @@ class RoutingTable(list):
 
     def randomLevelNode(self, level):
         '''Get a random node from the routing table at the level.'''
-        choices = set(filter(lambda y: y and y != self.entry, (self[level][x] for x in xrange(0, self.columns))))
+        choices = set([y for y in (self[level][x] for x in range(0, self.columns)) if y and y != self.entry])
         return choices and random.choice(list(choices)).node or None
 
     @property
@@ -493,7 +494,7 @@ class RoutingTable(list):
         if self.size == 0: return 0
         r = random.randint(1, (self.highestLevel+1)*(self.highestLevel+2)/2) # random in range 1 to sum
         level = 0 
-        for c in xrange(self.highestLevel, 0, -1):
+        for c in range(self.highestLevel, 0, -1):
             r = r - c
             if r <= 0: break 
             level = level + 1
@@ -515,7 +516,7 @@ class RoutingTable(list):
         '''Get the weighted random level and then get a random key below this level.'''
         level = self.weightedRandomLevel
         value = random.randint(0, self.columns-1)
-        digits = map(lambda x: self.digits[x] if x<level else (value if x == level else random.randint(0, self.columns-1)), xrange(0, self.rows))
+        digits = [self.digits[x] if x<level else (value if x == level else random.randint(0, self.columns-1)) for x in range(0, self.rows)]
         return self.digits2guid(digits)
     
     @property 
@@ -523,12 +524,12 @@ class RoutingTable(list):
         '''Get a weighted random key whose first few digits are same as ours, followed by one digit same as
         routing table value and followed by remaining random digits.'''
         choices = []
-        for d in xrange(0, self.highestLevel+1):
-            for v in xrange(0, self.columns):
+        for d in range(0, self.highestLevel+1):
+            for v in range(0, self.columns):
                 if self[d][v]: choices.append((d, v))
         if not choices: return None
         level, value = random.choice(choices)
-        digits = map(lambda x: self.digits[x] if x<level else(value if x == level else random.randint(0, self.columns-1)), xrange(0, self.rows))
+        digits = [self.digits[x] if x<level else(value if x == level else random.randint(0, self.columns-1)) for x in range(0, self.rows)]
         return self.digits2guid(digits)
 
     def matching(self, guid):
@@ -570,9 +571,9 @@ class RoutingTable(list):
 
 def _testRoutingTable():  
     rt = []
-    for port in xrange(0, 100):
+    for port in range(0, 100):
         rt.append(RoutingTable(node=Node(ip='0.0.0.0',port=port,type=socket.SOCK_DGRAM,guid=H('0.0.0.0:'+str(port)))))
-    for i in xrange(1, 100):
+    for i in range(1, 100):
         #print 'adding', i
         rt[0].add(rt[i].node, 0.0)
     #print rt[0]
@@ -587,9 +588,9 @@ class LeafSet(object):
     
     >>> node = Node(ip='0.0.0.0', port=0, type=socket.SOCK_DGRAM, guid=H('0.0.0.0:0'))
     >>> ls = LeafSet(node=node)
-    >>> for port in xrange(1, 100): 
+    >>> for port in range(1, 100): 
     ...    ignore = ls.add(Node(ip='0.0.0.0', port=port, type=socket.SOCK_DGRAM, guid=H('0.0.0.0:'+str(port))))
-    >>> print ls
+    >>> print(ls)
     <LeafSet <node ip='0.0.0.0' port=25 type=2 guid=332553500505024118139453427259589985268347006514L>
         <node ip='0.0.0.0' port=76 type=2 guid=344256270334124892387775982735564292838031798975L>
         <node ip='0.0.0.0' port=95 type=2 guid=345064513834135878542882879036800526214322188981L>
@@ -599,19 +600,19 @@ class LeafSet(object):
         <node ip='0.0.0.0' port=58 type=2 guid=415748779641751273361359367594880519561321642612L>
         <node ip='0.0.0.0' port=84 type=2 guid=420350901529310083152176181882612694359107974252L>
         <node ip='0.0.0.0' port=82 type=2 guid=447023377445164417508254939667924928525196135428L>>
-    >>> print len(ls), ls.maxsize
+    >>> print(len(ls), ls.maxsize)
     4 4
-    >>> print ls['low'].guid < ls[0].guid < ls['high'].guid
+    >>> print(ls['low'].guid < ls[0].guid < ls['high'].guid)
     True
-    >>> print (ls['high'].guid-1 in ls), (ls['high'].guid+1) in ls
+    >>> print((ls['high'].guid-1 in ls), (ls['high'].guid+1) in ls)
     True False
-    >>> print ls.closest(ls[-2].guid+10).guid == ls[-2].guid
+    >>> print(ls.closest(ls[-2].guid+10).guid == ls[-2].guid)
     True
-    >>> print ls.replicas(ls[-2].guid+10, 4) == set([ls[0], ls[-1], ls[-2]])
+    >>> print(ls.replicas(ls[-2].guid+10, 4) == set([ls[0], ls[-1], ls[-2]]))
     True
-    >>> print ls.intermediates(ls[-2].guid) == [ls[-1]]
+    >>> print(ls.intermediates(ls[-2].guid) == [ls[-1]])
     True
-    >>> print (ls.random in ls)
+    >>> print((ls.random in ls))
     True
     ''' 
     def __init__(self, node, maxsize=4):
@@ -675,7 +676,7 @@ class LeafSet(object):
     def closest(self, guid, ignore=()):
         '''Return closest node to the given guid, ignoring elements in ignore (set).'''
         mn, md = self.node, distance(self.node.guid, guid) # result node and distance
-        for n in filter(lambda x: x not in ignore, (self._preds + self._succs)):
+        for n in [x for x in (self._preds + self._succs) if x not in ignore]:
             d = distance(n.guid, guid) # distance with node n, check if it smaller than md.
             if d<md or d==md and n!=mn and inrange(mn.guid, n.guid, guid) and not inrange(n.guid, mn.guid, guid):
                 mn, md = n, d # a better match found, update result
@@ -685,8 +686,8 @@ class LeafSet(object):
         '''Return a list of nodes from self node to the given guid in our leaf set, or None if empty list.'''
         p = find(lambda x: x.guid == guid, self._preds)  # the guid is found in leaf set
         s = find(lambda x: x.guid == guid, self._succs)  # the guid is found in leaf set
-        result = (filter(lambda x: inrange(guid, self.node.guid, x.guid), self._preds[0:p]) if p>=0 else []) + \
-                 (filter(lambda x: inrange(self.node.guid, guid, x.guid), self._succs[0:s]) if s>=0 else [])
+        result = ([x for x in self._preds[0:p] if inrange(guid, self.node.guid, x.guid)] if p>=0 else []) + \
+                 ([x for x in self._succs[0:s] if inrange(self.node.guid, guid, x.guid)] if s>=0 else [])
         return result if len(result)>0 else None
 
     def replicas(self, guid, desired):
@@ -696,8 +697,8 @@ class LeafSet(object):
         if len(self._preds) == 0: result.add(self.node) # self node is a must
         else: # get the closest node in pred and succ and add all between those and us.
             m = distance(self.node.guid, guid)
-            m, closest, ignore = reduce(lambda a,b: (b,a[2]-1,a[2]-1) if b<a[0] else (a[0],a[1],a[2]-1), map(lambda x: distance(x.guid, guid), self._preds), (m, 0, 0))
-            m, closest, ignore = reduce(lambda a,b: (b,a[2]+1,a[2]+1) if b<a[0] else (a[0],a[1],a[2]+1), map(lambda x: distance(x.guid, guid), self._succs), (m, closest, 0))
+            m, closest, ignore = reduce(lambda a,b: (b,a[2]-1,a[2]-1) if b<a[0] else (a[0],a[1],a[2]-1), [distance(x.guid, guid) for x in self._preds], (m, 0, 0))
+            m, closest, ignore = reduce(lambda a,b: (b,a[2]+1,a[2]+1) if b<a[0] else (a[0],a[1],a[2]+1), [distance(x.guid, guid) for x in self._succs], (m, closest, 0))
             half = desired / 2
             start = 0
             if self.overlap or (0-closest != len(self._preds)) and (closest != len(self._succs)):
@@ -705,7 +706,7 @@ class LeafSet(object):
                 elif closest < 0: start = (closest - half + 1) if inrange(self._preds[-1*closest-1].guid, self.node.guid, guid) else (closest - half)
                 else: start = (closest - half) if inrange(self.node.guid, self._succs[closest-1].guid, guid) else (closest - half + 1)
                 stop = start + desired
-                for index in xrange(start, stop):
+                for index in range(start, stop):
                     if index == 0: result.add(self.node)
                     elif index < 0 and 1-index < len(self._preds): result.add(self._preds[-index-1])
                     elif index > 0 and index-1 < len(self._succs): result.add(self._succs[index-1])
@@ -733,13 +734,13 @@ class LeafSet(object):
         ret = None
         
         if findNode(node.guid, self._preds)<0: # not found in preds
-            for i in xrange(0, len(self._preds)+1):
+            for i in range(0, len(self._preds)+1):
                 if i<len(self._preds) and inrange(self._preds[i].guid, self.node.guid, node.guid) or i==len(self._preds)<self.maxsize:
                     self._preds.insert(i, node)
                     ret = len(self._preds)>self.maxsize and self._preds.pop() or self.node
                     break
         if findNode(node.guid, self._succs)<0: # not found in preds
-            for i in xrange(0, len(self._succs)+1):
+            for i in range(0, len(self._succs)+1):
                 if i<len(self._succs) and inrange(self.node.guid, self._succs[i].guid, node.guid) or i==len(self._succs)<self.maxsize:
                     self._succs.insert(i, node)
                     ret = len(self._succs)>self.maxsize and self._succs.pop() or self.node
@@ -801,7 +802,7 @@ class LeafSet(object):
         '''Return true if there is an overlap in the leaf set and it covers all range for given
         replica size.'''
         size = min(len(self), replicas/2)
-        for i in xrange(0, size):
+        for i in range(0, size):
             if self._preds[i] == self._succs[size-1]:
                 return True
         return False
@@ -816,19 +817,19 @@ class NodeCache(object):
     >>> cache = NodeCache(maxsize=4)
     >>> for port in range(0, cache.maxsize): # until the cache is full
     ...    cache.add(Node(ip='0.0.0.0', port=port, type=socket.SOCK_DGRAM, guid=H('0.0.0.0:'+str(port))))
-    >>> print cache
+    >>> print(cache)
     <NodeCache len=4
         sorted='[386487918899427893147283785174226450560216948519L, 696085870186638593551070967803585453548489714879L, 852739581864525514108676383126943539373951595004L, 1270878719196245987460471235562079865445211503331L]'
         recent='[696085870186638593551070967803585453548489714879L, 852739581864525514108676383126943539373951595004L, 1270878719196245987460471235562079865445211503331L, 386487918899427893147283785174226450560216948519L]'>
     >>> for port in range(cache.maxsize, 2*cache.maxsize): # add additional 4 so that previous ones are replaced
     ...    cache.add(Node(ip='0.0.0.0', port=port, type=socket.SOCK_DGRAM, guid=H('0.0.0.0:'+str(port))))
-    >>> print cache
+    >>> print(cache)
     <NodeCache len=4
         sorted='[252478387135709829778192334194629447386561244062L, 893097759797013506484723759710183999272836968151L, 910908089409371729128886584183916560096870579416L, 1321123319433667090818861432786256425521662391362L]'
         recent='[893097759797013506484723759710183999272836968151L, 252478387135709829778192334194629447386561244062L, 910908089409371729128886584183916560096870579416L, 1321123319433667090818861432786256425521662391362L]'>
     >>> for port in range(cache.maxsize, 2*cache.maxsize): # repeated entries, cache remains the same
     ...    cache.add(Node(ip='0.0.0.0', port=port, type=socket.SOCK_DGRAM, guid=H('0.0.0.0:'+str(port))))
-    >>> print cache
+    >>> print(cache)
     <NodeCache len=4
         sorted='[252478387135709829778192334194629447386561244062L, 893097759797013506484723759710183999272836968151L, 910908089409371729128886584183916560096870579416L, 1321123319433667090818861432786256425521662391362L]'
         recent='[893097759797013506484723759710183999272836968151L, 252478387135709829778192334194629447386561244062L, 910908089409371729128886584183916560096870579416L, 1321123319433667090818861432786256425521662391362L]'>
@@ -891,14 +892,14 @@ class NodeCache(object):
             if guid<first.guid or guid>last.guid: # not in range, return either first or last
                 return distance(guid, first.guid)<distance(guid, last.guid) and first or last
             else:
-                for a in xrange(0, len(self.sorted)-1):
+                for a in range(0, len(self.sorted)-1):
                     first, last = self.sorted[a], self.sorted[a+1]
                     if first.guid<guid<last.guid: # found the containing range, return one of the endpoint of the range
                         return distance(guid, first.guid)<distance(guid,last.guid) and first or last
         return None
     
     def __repr__(self): # print out a printable representation
-        return '<NodeCache len=%r\n    sorted=%r\n    recent=%r>'%(len(self), repr(map(lambda x: x.guid, self.sorted)), repr(map(lambda x: x.guid, self.recent)))
+        return '<NodeCache len=%r\n    sorted=%r\n    recent=%r>'%(len(self), repr([x.guid for x in self.sorted]), repr([x.guid for x in self.recent]))
 
 #------------------------------------------------------------------------------ 
 # Other data structures for router
@@ -1077,7 +1078,7 @@ class Router(object):
             yield randomsleep(timeout)
             now = time.time()
             all = self.rt.list + list(self.rrt) + self.ls.list
-            all = set(filter(lambda x: x not in self._pings and x not in self.pdown, all)) # remove those that are down or we recently pinged
+            all = set([x for x in all if x not in self._pings and x not in self.pdown]) # remove those that are down or we recently pinged
             msg = Message(name='Ping:Request')
             for node in all:
                 yield self.send(msg, node=node, timeout=5)
@@ -1110,8 +1111,8 @@ class Router(object):
         if result != 'none':
             if len(self.ls) == 0:
                 rt = self.rt
-                for row in xrange(rt.rows):
-                    for col in xrange(rt.columns):
+                for row in range(rt.rows):
+                    for col in range(rt.columns):
                         if rt[row][col] and rt.node != rt[row][col].node and node != rt[row][col]:
                             self.ls._origadd(rt[row][col].node) 
             # TODO: how do we inform listeners (storage) that leaf set is changed?
@@ -1271,7 +1272,7 @@ class Router(object):
         node, rt = msg.remote, self.rt
         self.cache.add(node)
         nodes = []
-        for col in xrange(0, rt.columns):
+        for col in range(0, rt.columns):
             if rt[msg.level][col] and self.node != rt[msg.level][col].node:
                 nodes.append(rt[msg.level][col].node)
         msg = Message(name='RoutingTable:Response', node=self.node, neighbors=nodes)
@@ -1290,7 +1291,7 @@ class Router(object):
                 msg = yield self.net.get(lambda x: x.name=='RoutingTable:Response', timeout=5)
                 if msg:
                     self.cache.add(node)
-                    nodes = filter(lambda x: x.guid < Hmod and x != self.node and x not in self.ls and x not in self.rt, msg.neighbors)
+                    nodes = [x for x in msg.neighbors if x.guid < Hmod and x != self.node and x not in self.ls and x not in self.rt]
                     if nodes: 
                         notadded = []
                         for x in nodes:
@@ -1325,14 +1326,14 @@ def testRouter():
     multitask.completed = False
     def jointest():
         try:
-            n = [Network().start() for x in xrange(0, 10)]
+            n = [Network().start() for x in range(0, 10)]
             r = [Router(x).start() for x in n] 
             for ri in r[1:]:
                 ri.bs = [n[0].node]
                 yield ri.join(bs=n[0].node)
                 yield multitask.sleep(5)
         except:
-            print 'testRouter.jointest() didnot pass'
+            print('testRouter.jointest() didnot pass')
             traceback.print_exc()
         yield multitask.sleep(600) # check if all updates go fine?
         multitask.completed = True
@@ -1353,18 +1354,18 @@ class Key(object):
         if 'value' in kwargs: # need to parse
             self.str = kwargs.get('value')
             t1, t2, e1, e2, put, guid, hash, nonce, owner = struct.unpack(_fmt, self.str)
-            self.time, self.expires = long(t1*(2**32)+t2), long(e1*(2**32)+e2)
+            self.time, self.expires = int(t1*(2**32)+t2), int(e1*(2**32)+e2)
             self.put = (put != 0)
             self.guid, self.hash, self.nonce, self.owner = bin2int(guid), bin2int(hash), bin2int(nonce), bin2int(owner)
         else: # need to construct from individual fields
             for n in ('time', 'expires', 'put', 'guid', 'hash', 'nonce', 'owner', 'client'):
-                exec 'self.%s = kwargs.get("%s", None)'%(n,n)
-            self.time = long(self.time); self.expires = long(self.expires)
+                exec('self.%s = kwargs.get("%s", None)'%(n,n))
+            self.time = int(self.time); self.expires = int(self.expires)
             t1, t2, e1, e2 = int(self.time/(2**32)), int(self.time%(2**32)), int(self.expires/(2**32)), int(self.expires%(2**32))
             put = (self.put and 1 or 0)
             guid, hash, nonce, owner = int2bin(self.guid), int2bin(self.hash), int2bin(self.nonce), int2bin(self.owner)
             self.str = struct.pack(_fmt, t1, t2, e1, e2, put, guid, hash, nonce, owner)
-            if len(self.str) != 97: raise ValueError, 'invalid length of the key %d'%(len(self.str))
+            if len(self.str) != 97: raise ValueError('invalid length of the key %d'%(len(self.str)))
         self.index = struct.pack(_fmtindex, int2bin(self.guid), int2bin(self.hash), int2bin(self.nonce), int2bin(self.owner))
     def __repr__(self): 
         return '<Key time=%r expires=%r put=%r guid=%r hash=%r nonce=%r owner=%r>'%(self.time, self.expires, self.put, self.guid, self.hash, self.nonce, self.owner)
@@ -1382,8 +1383,8 @@ class Value(object):
             l, = struct.unpack('!H', raw[:2]); self.sigma, raw = raw[2:2+l], raw[2+l:]
         else:
             for n in ('value', 'hash', 'Kp', 'sigma'):
-                exec 'self.%s = kwargs.get("%s", None)'%(n,n)
-        if isinstance(self.value, long): logger.error('Incorrect Value(value=%r)', self.value)
+                exec('self.%s = kwargs.get("%s", None)'%(n,n))
+        if isinstance(self.value, int): logger.error('Incorrect Value(value=%r)', self.value)
     def __repr__(self): return '<value value-len=%d hash=%r Kp=%r sigma=%r, value=%r>'%(len(self.value) if self.value else 0, self.hash, self.Kp, self.sigma, self.value)
     def __len__(self): return len(str(self))
     def __str__(self):
@@ -1417,9 +1418,9 @@ class Database(object):
     def _cleanup(self, guid):
         if guid not in self._guid: return
         now, o, oc = time.time(), self._guid[guid], 0
-        for oi in o.keys():
+        for oi in list(o.keys()):
             v, vc = o[oi], 0
-            for vi in v.keys():
+            for vi in list(v.keys()):
                 i = v.get(vi, None)
                 d = self._data[i] if (i is not None and i in self._data) else None
                 if d is not None and i.expires<now:
@@ -1470,18 +1471,18 @@ class Database(object):
         result = []
         if guid not in self._guid: return result
         o = self._guid[guid]
-        if owner is None: v = set(sum(map(lambda x: x.values(), o.values()), []))
-        else: v = set(sum(o[owner].values(), [])) if owner in o else set()
-        result = map(lambda y: (y, self._data[y]), filter(lambda x: x in self._data and x.put, v))
+        if owner is None: v = set(sum([list(x.values()) for x in list(o.values())], []))
+        else: v = set(sum(list(o[owner].values()), [])) if owner in o else set()
+        result = [(y, self._data[y]) for y in [x for x in v if x in self._data and x.put]]
         logger.debug('db.get(guid=%r,owner=%r,maxvalues=%r) returns %r', guid, owner, maxvalues, result)
         return result
     
     def getkeys(self, low, high):
         '''Get all the keys in the range [low, high).'''
-        if low<=high: guids = sorted(filter(lambda x: low<=x<=high, self._guid.keys()))
-        else: guids = sorted(filter(lambda x: x>=low, self._guid.keys())) + sorted(filter(lambda x: x<=high, self._guid.keys()))
+        if low<=high: guids = sorted([x for x in list(self._guid.keys()) if low<=x<=high])
+        else: guids = sorted([x for x in list(self._guid.keys()) if x>=low]) + sorted([x for x in list(self._guid.keys()) if x<=high])
         now = time.time()
-        return filter(lambda y: y.expires>=now, sum(map(lambda z: sum(map(lambda w: w.values(), self._guid[z].values()), []), guids), []))
+        return [y for y in sum([sum([list(w.values()) for w in list(self._guid[z].values())], []) for z in guids], []) if y.expires>=now]
         
     def getvalue(self, key):
         '''Get the value for the specific key.'''
@@ -1512,7 +1513,7 @@ class Range(object):
         self.low, self.high = low, high
         self._str = '%d-%d'%(low, high)
         self.sync = dict() # hash table with key as Node and value as last sync or expiration time.
-        self.hash = 0L     # hash of all keys in range
+        self.hash = 0     # hash of all keys in range
         self.keys = []     # list of all keys in range
     def __cmp__(self, other):
         if id(self) == id(other): return 0 # a shortcut to compare identical objects
@@ -1552,16 +1553,16 @@ class Ranges(dict):
         '''Update the ranges by removing those which are not in leaf-set.'''
         sorted, ranges = ls.sorted, set()
         if sorted:
-            for i in xrange(0, len(sorted)-1):
+            for i in range(0, len(sorted)-1):
                 a, b = sorted[i], sorted[i+1]
                 ranges.add((a.guid, (b.guid+Hmod-1)%Hmod))
-        toremove = filter(lambda x: (x.low, x.high) not in ranges, self.sorted)
+        toremove = [x for x in self.sorted if (x.low, x.high) not in ranges]
         for r in toremove: self.remove(r)
 
     def invalidate(self, guid):
         '''Invalidate all the ranges which covers the guid.'''
         try:
-            for range in filter(lambda x: inrange(x.low, x.high, guid), self.sorted):
+            for range in [x for x in self.sorted if inrange(x.low, x.high, guid)]:
                 range.hash = None
         except:
             logger.exception('invalidate exception. guid=%r', guid) 
@@ -1574,7 +1575,7 @@ class Storage(object):
         of change in router's leafset.'''
         self.node, self.net, self.router, self.ls = net.node, net, router, router.ls
         self.replicas, self.required = (replicas/2)*2, required # make it even
-        self.low, self.high, self.ranges = 0L, (Hmod-1), Ranges()
+        self.low, self.high, self.ranges = 0, (Hmod-1), Ranges()
         self._gens, self.db = [], Database()
         
     def __repr__(self):
@@ -1614,9 +1615,9 @@ class Storage(object):
             start = time.time()
             value, hash = msg.value, msg.hash
             if value is not None and hash is not None and hash != H(str(value)):
-                raise ValueError, 'invalid hash for the value'
+                raise ValueError('invalid hash for the value')
             if value is None and hash is None:
-                raise ValueError, 'value and hash are both missing'
+                raise ValueError('value and hash are both missing')
             if hash is None and value is not None:
                 hash = H(str(value))
             owner = msg.Kp and H(str(msg.Kp)) or 0 # owner's identity
@@ -1633,7 +1634,7 @@ class Storage(object):
             if r: self.ranges.invalidate(r.guid)
         
             if not replicas:
-                raise ValueError, 'no replica node available'
+                raise ValueError('no replica node available')
             msg, seq = msg.dup(), msg.seq
             msg.name = 'Replicate:Request'
             msg['guid'] = msg.dest  # TODO: this was added because guid was needed in replicate request
@@ -1644,14 +1645,14 @@ class Storage(object):
             while len(replicas)>(self.replicas-self.required): # wait for more responses
                 resp = yield self.net.get(lambda x: x.name=='Replicate:Response' and x.seq==msg.seq, timeout=(timeout-(time.time()-start)))
                 if not resp: # timed out waiting for response
-                    raise ValueError, 'timedout waiting for replication'
+                    raise ValueError('timedout waiting for replication')
                 elif resp.remote in replicas:
                     replicas.remove(resp.remote)
                     
             # response is sent directly to the source
             yield self.net.send(Message(name='Put:Response', seq=seq, result=True), node=msg.src) 
         
-        except ValueError, E:
+        except ValueError as E:
             logger.exception('puthandler exception')
             try: yield self.net.send(Message(name='Put:Response', seq=msg.seq, result=False, error=str(E)), node=msg.src)
             except: pass
@@ -1663,9 +1664,9 @@ class Storage(object):
             start = time.time()
             value, hash, Kp, sigma = msg.value, msg.hash, msg.Kp, msg.sigma
             if value is not None and hash is not None and hash != H(str(value)):
-                raise ValueError, 'invalid hash for the value'
+                raise ValueError('invalid hash for the value')
             if value is None and hash is None:
-                raise ValueError, 'value and hash are both missing'
+                raise ValueError('value and hash are both missing')
             if hash is None and value is not None:
                 hash = H(str(value))
             owner = Kp and H(str(Kp)) or None # owner's identity
@@ -1679,7 +1680,7 @@ class Storage(object):
             
             yield self.net.send(Message(name='Replicate:Response', seq=msg.seq), node=msg.remote)
         
-        except ValueError, E:
+        except ValueError as E:
             logger.exception('replicatehandler exception')
             try: yield self.net.send(Message(name='Replicate:Error', seq=msg.seq, error=str(E)), node=msg.remote)
             except: pass
@@ -1717,7 +1718,7 @@ class Storage(object):
             if not node: continue   # no leaf set node
             ranges = self.getSharedRanges(node.guid)
             if not ranges: continue # no shared range
-            range = random.choice(ranges.keys())
+            range = random.choice(list(ranges.keys()))
             keys = yield self.db.getkeys(low=range.low, high=range.high)
             hash = H(''.join(map(str, keys))) # hash of all the keys in the range
             seq = _seq = _seq + 1
@@ -1737,7 +1738,7 @@ class Storage(object):
                     self.unsynched(range=range, node=node)
                     continue
                 try:
-                    remotekeys = filter(lambda y: find(lambda x: str(x)==str(y), keys)<0, msg.keyss) # all keys in msg which are not in local keys
+                    remotekeys = [y for y in msg.keyss if find(lambda x: str(x)==str(y), keys)<0] # all keys in msg which are not in local keys
                 except: 
                     logger.debug('msg.keys=%r keys=%r', msg.keyss, keys)
                     raise 
@@ -1781,8 +1782,8 @@ class Storage(object):
         if ls.coversAll(self.replicas):
             ret.add(Range(0, Hmod-1))
             return ret
-        low = high = 0L
-        for i in xrange(0, len(ls)):
+        low = high = 0
+        for i in range(0, len(ls)):
             if guid == ls._succs[i].guid:
                 low, high = (0 if (i==len(ls)-1) else (-len(ls)+i+1)), len(ls)
                 break
@@ -1790,7 +1791,7 @@ class Storage(object):
                 low, high = -len(ls), (0 if (i==len(ls)-1) else (len(ls)-i-1))
 
         guid = self.node.guid
-        for j,k in map(lambda x: (x, x+1), xrange(low, high)):
+        for j,k in [(x, x+1) for x in range(low, high)]:
             a = guid if j==0 else (ls._preds[-j-1].guid if j<0 else ls._succs[j-1].guid)
             b = guid if k==0 else (ls._preds[-k-1].guid if k<0 else ls._succs[k-1].guid)
             b = b-1
@@ -1833,7 +1834,7 @@ class Storage(object):
             yield randomsleep(timeout)
             if self.ls.coversAll(self.replicas): continue # no need to discard if we cover all
             keys = yield self.db.getkeys(low=self.ls['high'].guid, high=self.ls['low'].guid) # get keys in inverse range
-            keys = filter(lambda x: not inrange(self.low, self.high, x.guid), keys)
+            keys = [x for x in keys if not inrange(self.low, self.high, x.guid)]
             for key in keys:
                 seq = _seq = _seq + 1
                 yield self.route(guid=key.guid, payload=Message(name='ReplicaSet:Request', seq=seq, src=self.node.guid, dest=key.guid))
@@ -1857,9 +1858,9 @@ class Storage(object):
         ls, size, replicas = self.ls, len(self.ls), set()
         if size>0:
             logger.debug('replicaNodes %r %r %r', ls._preds[0].guid, self.node.guid, guid)
-            for i in xrange((size-1) if inrange(ls._preds[0].guid, self.node.guid, guid) else (size-2), -1, -1):
+            for i in range((size-1) if inrange(ls._preds[0].guid, self.node.guid, guid) else (size-2), -1, -1):
                 replicas.add(ls._preds[i])
-            for i in xrange((size-1) if inrange(ls._succs[0].guid, self.node.guid, guid) else (size-2), -1, -1):
+            for i in range((size-1) if inrange(ls._succs[0].guid, self.node.guid, guid) else (size-2), -1, -1):
                 replicas.add(ls._succs[i])
         return replicas
     
@@ -1924,7 +1925,7 @@ def _testDHT():
     Storage(n1, Router(n1).start()).start()
     yield put(net=n1, guid=H('kundan'), value='Kundan Singh', nonce=randomNonce(), expires=time.time()+60, Ks=PrivateKey())
     data = yield get(net=n1, guid=H('kundan'))
-    print 'got value=', data
+    print('got value=', data)
 
 
 import linecache, random, sys
@@ -1942,7 +1943,7 @@ def traceit(frame, event, arg):
                 filename = filename[:-1]
             name = frame.f_globals["__name__"]
             line = linecache.getline(filename, lineno)
-            print "%s:%s: %s" % (name, lineno, line.rstrip())
+            print("%s:%s: %s" % (name, lineno, line.rstrip()))
     return traceit
 
 #sys.settrace(traceit)
@@ -1956,7 +1957,7 @@ _apps = dict()
 def start(app=None, options=None):
     '''Start the module.'''
     global _apps
-    if app in _apps: raise IndexError, 'dht already started'
+    if app in _apps: raise IndexError('dht already started')
     n = Network().start()
     r = Router(n).start()
     s = Storage(n, r).start()
@@ -1966,7 +1967,7 @@ def start(app=None, options=None):
 def stop(app=None):
     '''Stop the module.'''
     global _apps
-    if app not in _apps: raise IndexError, 'dht not started'
+    if app not in _apps: raise IndexError('dht not started')
     n, r, s = _apps[app]
     del _apps[app]
     s.stop(); r.stop(); n.stop()
@@ -1979,10 +1980,11 @@ if __name__ == '__main__':
         doctest.testmod()    # first run doctest,
         for f in dir():      # then run all _test* functions
             if str(f).find('_test') == 0 and callable(eval(f)):
-                exec f + '()'
+                exec(f + '()')
     else:
         if sys.argv[-1] == '-d': logger.setLevel(logging.DEBUG)
         start()
         try: multitask.run()
         except KeyboardInterrupt: pass
         stop()
+

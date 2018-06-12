@@ -13,13 +13,13 @@ class DTMF(object):
     To construct a new DTMF payload, supply the necessary arguments such as key and end-flag.
     
     >>> d1 = DTMF(key='1', end=True)
-    >>> print d1
+    >>> print(d1)
     \x01\x80\x00\xc8
     
     To parse DTMF payload, supply the raw data.
     
     >>> d2 = DTMF('\\x02\\x80\\x00\\xc8')  # parse
-    >>> print d2.event, d2.E, d2.R, d2.volume, d2.duration
+    >>> print(d2.event, d2.E, d2.R, d2.volume, d2.duration)
     2 True False 0 200
     '''
     def __init__(self, value=None, **kwargs):
@@ -54,13 +54,14 @@ def createDTMFs(keys):
     '''Return an array of DTMF objects with each representing one key in the keys.
     
     >>> payloads = createDTMFs('1234')
-    >>> print ' '.join(map(str, payloads))
+    >>> print(' '.join(map(str, payloads)))
     \x01\x00\x00\xc8 \x02\x00\x00\xc8 \x03\x00\x00\xc8 \x04\x80\x00\xc8
     '''
-    result = map(lambda x: DTMF(key=x), keys)
+    result = [DTMF(key=x) for x in keys]
     if result: result[-1].E = True # last one has E set to True
     return result
 
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

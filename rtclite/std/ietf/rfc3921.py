@@ -14,7 +14,7 @@ from .rfc3920 import Connection, JID, Stanza, bind, authenticate
 logger = logging.getLogger('rfc3921')
 
 def Property(func): return property(doc=func.__doc__, **func()) # This is used as decorator to define a property.
-def respond(*args): raise StopIteration, tuple(args) if len(args) != 1 else args # a generator function calls respond to return a response
+def respond(*args): raise StopIteration(tuple(args) if len(args) != 1 else args) # a generator function calls respond to return a response
 F = lambda x: x and x[0] or None # return first of a list or None if empty
 
 def child(tag): # define a python attribute as an XML child tag.
@@ -23,7 +23,7 @@ def child(tag): # define a python attribute as an XML child tag.
         def fset(self, value):
             if value is None: fdel(self) # None is treated as delete
             else:
-                elem = isinstance(value, XML) and value or XML(tag=tag, children=[unicode(value)])
+                elem = isinstance(value, XML) and value or XML(tag=tag, children=[str(value)])
                 self.children |= elem
             return elem
         def fdel(self): del self.children[tag]
@@ -42,7 +42,7 @@ class Message(Stanza):
     def __init__(self, value=None, **kwargs):
         super(Message, self).__init__(value=value, **kwargs); self.tag = 'message'
         self.direction, self.time = None, time.time() # these are not XML attributes
-        for k,v in kwargs.iteritems(): self.__setattr__(k, str(v)) # should include type, to, frm, subject, thread, body
+        for k,v in kwargs.items(): self.__setattr__(k, str(v)) # should include type, to, frm, subject, thread, body
         
 class Presence(Stanza):
     '''A single presence request.'''
@@ -51,7 +51,7 @@ class Presence(Stanza):
     show, status, priority = child('show'), child('status'), child('priority')
     def __init__(self, **kwargs):
         Stanza.__init__(self, tag='presence')
-        for k,v in kwargs.iteritems(): 
+        for k,v in kwargs.items(): 
             if v is not None: self.__setattr__(k, str(v)) # should include type, to, frm, show, status, priority
 
 class Contact(XML):
@@ -125,16 +125,16 @@ class History(Connector):
         super(History, self).__init__(**kwargs)
         self._init, self._queue = False, multitask.SmartQueue()
     
-    def __repr__(self): return u'<History to="%s" from="%s" type="%s" len="%d" />'%(self.to, self.frm, self.type, len(self)) # override method to return concise information
+    def __repr__(self): return '<History to="%s" from="%s" type="%s" len="%d" />'%(self.to, self.frm, self.type, len(self)) # override method to return concise information
     # adding a new history item should initialize if needed, hence override these methods
     def __setitem__(self, key, value): result = super(History, self).__setitem__(key, value); self._initialize(); return result
     def append(self, item): super(History, self).append(item); self._initialize()
     def extend(self, list): super(History, self).extend(list); self._initialize()
     
     def send(self, msg, **kwargs):
-        if not self.connection: raise IOError, 'history.connection is not set before send'
+        if not self.connection: raise IOError('history.connection is not set before send')
         if not isinstance(msg, Message): msg = Message(); Message.__init__(msg)
-        for x in ('to', 'type'): exec 'if not msg.%s and self.%s: msg.%s = self.%s'%(x,x,x,x)
+        for x in ('to', 'type'): exec('if not msg.%s and self.%s: msg.%s = self.%s'%(x,x,x,x))
         yield self.connection.put(msg)
         result = Message(value=str(msg), direction='send') # construct a new
         self.append(result)
@@ -177,7 +177,7 @@ class Roster(Connector):
     def __init__(self, **kwargs):
         super(Roster, self).__init__(**kwargs)
         self.presence = None
-    def __repr__(self): return u'<Roster jid="%s" len="%d" />'%(self.jid, len(self)) # override method to return concise information
+    def __repr__(self): return '<Roster jid="%s" len="%d" />'%(self.jid, len(self)) # override method to return concise information
     
     @property
     def jid(self):
@@ -217,7 +217,7 @@ class Roster(Connector):
     
     # define additional methods for subscribe, subscribed, unsubscribe and unsubscribed
     for func in ('subscribe', 'subscribed', 'unsubscribe', 'unsubscribed'):
-        exec "def %s(self, jid): yield self.connection.put(Presence(to=JID(jid).bareJID, type='%s'))"%(func, func)
+        exec("def %s(self, jid): yield self.connection.put(Presence(to=JID(jid).bareJID, type='%s'))"%(func, func))
     
     def connected(self, old, new): # connection or disconnection callback
         if new is not None: 
@@ -307,15 +307,15 @@ def _testData():
 
 def testMessage():
     m1 = Message(type='chat', to='kundan10@gmail.com', frm='kundansingh99@gmail.com', subject='Hello', direction='recv')
-    print 'm1=', m1
+    print('m1=', m1)
     h1 = History()
     h1 += m1
-    print 'h1+=m1=', h1
+    print('h1+=m1=', h1)
     h1.connection = Connection()
     m2 = Message(body='Hi')
     m3 = yield h1.send(m2)
-    print 'm3=', m3
-    print 'h1+=m3=', h1
+    print('m3=', m3)
+    print('h1+=m3=', h1)
     yield
 
 def testIM(): # TODO: rename this with prefix _ to enable testing
@@ -323,18 +323,18 @@ def testIM(): # TODO: rename this with prefix _ to enable testing
     # TODO: change the following to your account and password
     conn = Connection(server='gmail.com', username='kundansingh99', password='mypass')
     type, error = yield conn.connect() 
-    if error:  print 'error=', error; respond()
+    if error:  print('error=', error); respond()
     mechanism, error = yield authenticate(conn)
-    if error: print 'error=', error; respond()
+    if error: print('error=', error); respond()
     jid, error = yield bind(conn)
-    if error: print 'error=', error; respond()
+    if error: print('error=', error); respond()
     
     h1 = History(); h1.connection = conn
     m1 = yield h1.send(Message(type='chat', to='kundan10@gmail.com', body='Hello'))
-    print 'history=', h1
+    print('history=', h1)
     
     yield conn.disconnect()
-    print 'testIM exiting'
+    print('testIM exiting')
 
 def testPresence(): # TODO: rename this with prefix _ to enable testing
     # TODO: change the following to your account and password
@@ -348,18 +348,18 @@ def testPresence(): # TODO: rename this with prefix _ to enable testing
     yield h1.send(Message(body='Hello How are you?'))
 
     count = 5
-    for i in xrange(5):
+    for i in range(5):
         try:
             msg = yield h1.recv(timeout=120)
-            print msg
-            print '%s: %s'%(msg.frm, msg.body.cdata)
+            print(msg)
+            print('%s: %s'%(msg.frm, msg.body.cdata))
             yield h1.send(Message(body='You said "%s"'%(msg.body.cdata)))
-        except Exception, e:
-            print str(type(e)), e
+        except Exception as e:
+            print(str(type(e)), e)
             break
         
     yield u1.logout()
-    print 'testPresence exiting'
+    print('testPresence exiting')
 
 def testClose(): yield multitask.sleep(25); exit()
 
@@ -372,5 +372,6 @@ if __name__ == '__main__':
             multitask.add(globals()[f]())
     try: multitask.run()
     except KeyboardInterrupt: pass
-    except select.error: print 'select error'; pass
+    except select.error: print('select error'); pass
     sys.exit()
+

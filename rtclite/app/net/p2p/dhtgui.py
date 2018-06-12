@@ -8,7 +8,7 @@ to act on the user input.
 '''
 
 try: import wx
-except ImportError: print 'dhtgui module depends on wx, please install from https://www.wxpython.org and run again'; raise
+except ImportError: print('dhtgui module depends on wx, please install from https://www.wxpython.org and run again'); raise
 
 import time, random, sys, os, logging
 from math import degrees, radians, atan2, sin, cos, sqrt, pow
@@ -40,7 +40,7 @@ def traceit(frame, event, arg):
                 filename = filename[:-1]
             name = frame.f_globals["__name__"]
             line = linecache.getline(filename, lineno)
-            print "%s:%s: %s" % (name, lineno, line.rstrip())
+            print("%s:%s: %s" % (name, lineno, line.rstrip()))
     return traceit
 
 #===============================================================================
@@ -85,10 +85,10 @@ class Model(object):
     def refresh(self):
         '''Remove any expired entries from nodes and msgs.'''
         now = time.time()
-        for id in filter(lambda x: self.nodes[x].expires<now, self.nodes):
+        for id in [x for x in self.nodes if self.nodes[x].expires<now]:
             logger.debug('removing expired node %r', self.nodes[id])
             del self.nodes[id] 
-        self.msgs[:] = filter(lambda x: x.expires>=now, self.msgs) # filter away expired ones
+        self.msgs[:] = [x for x in self.msgs if x.expires>=now] # filter away expired ones
         
 class View(wx.Panel):
     '''Implementation of the view using a Panel that displays the ring-based DHT.'''
@@ -189,7 +189,7 @@ class View(wx.Panel):
         # dc.SetFont(wx.Font(10, wx.MODERN, wx.NORMAL, wx.NORMAL))
         index = 1
         dc.SetPen(self.pen['glass'])
-        for node in filter(lambda x: not x.removed, self.model.nodes.values()):
+        for node in [x for x in list(self.model.nodes.values()) if not x.removed]:
             angle = node.angle
             x, y = radius + (radius-20)*cos(radians(angle)), radius + (radius-20)*sin(radians(angle)) 
             server = hasattr(node, 's') and node.s is not None and node.s.router is not None
@@ -218,16 +218,16 @@ class View(wx.Panel):
             
             # draw leaf set
             ls = hasattr(node, 's') and node.s is not None and node.s.router is not None and node.s.router.ls.list or []
-            ls = map(lambda z: (z.index, z.angle), filter(lambda y: y is not None, map(lambda x: self.model.nodes.get(x.guid, None), ls)))
+            ls = [(z.index, z.angle) for z in [y for y in [self.model.nodes.get(x.guid, None) for x in ls] if y is not None]]
             dc.SetBrush(self.brush['glass'])
             dc.SetPen(self.pen['green'])
             for index, angle in ls:
                 x, y = radius + (radius-20)*cos(radians(angle)), radius + (radius-20)*sin(radians(angle))
                 dc.DrawCircle(x, y, 12)
-            dc.DrawText('Node: ' + str(node.index) + ', LS:' + ','.join(map(lambda x: str(x[0]), ls)), 20, height-80)
-            map(lambda x: x.Show(True), [self.key, self.value, self.put, self.get, self.remove, self.user, self.bind, self.conn, self.sendto])
+            dc.DrawText('Node: ' + str(node.index) + ', LS:' + ','.join([str(x[0]) for x in ls]), 20, height-80)
+            list(map(lambda x: x.Show(True), [self.key, self.value, self.put, self.get, self.remove, self.user, self.bind, self.conn, self.sendto]))
         else:
-            map(lambda x: x.Show(False), [self.key, self.value, self.put, self.get, self.remove, self.user, self.bind, self.conn, self.sendto])
+            list(map(lambda x: x.Show(False), [self.key, self.value, self.put, self.get, self.remove, self.user, self.bind, self.conn, self.sendto]))
             dc.SetBrush(self.brush['glass'])
             dc.SetPen(self.pen['blue'])
             dc.DrawText('Click near the center of the ring to create a new random DHT node.', 20, height-80)
@@ -245,7 +245,7 @@ class View(wx.Panel):
             #if distance < (radius-40) or distance > radius: 
             #    return
             angle = (360 + 90 - degrees(atan2(point.y-radius, point.x-radius))) % 360
-            guid = ((2**160)/360) * long(angle)
+            guid = ((2**160)/360) * int(angle)
             self.control.onClicked(guid, abs(distance - (radius-20)))
 
     def OnSize(self, event):
@@ -318,7 +318,7 @@ class NetworkStub(Network):
         if toSend:
             return Network.send(self, msg, node, timeout=timeout)
         else:
-            raise StopIteration, True
+            raise StopIteration(True)
         
 class ControllerDHT(object):
     def __init__(self, model=None, view=None):
@@ -337,7 +337,7 @@ class ControllerDHT(object):
             if self.view: self.view.Refresh() 
         else: # clicked near the ring.
             comp = lambda x, y: cmp(abs(x-guid), abs(y-guid))
-            nodes = [self.model.nodes[x] for x in sorted(self.model.nodes.keys(), comp)]
+            nodes = [self.model.nodes[x] for x in sorted(list(self.model.nodes.keys()), comp)]
             if nodes: 
                 logger.debug('clicked near %r', nodes[0].index)
                 if nodes[0] == self.model.selected: # already selected, check if needs to be deleted?
@@ -356,8 +356,8 @@ class ControllerDHT(object):
                             if r is not None:
                                 ns = self.model.nodes
                                 logger.debug('%r', r.ls)
-                                logger.debug(' LeafSet=%r', ','.join(map(lambda x: '%d'%(ns[x.guid].index), r.ls.sorted)))
-                                logger.debug(' Table=%r', ','.join(map(lambda x: '%d'%(ns[x.guid].index), r.rt.list)))
+                                logger.debug(' LeafSet=%r', ','.join(['%d'%(ns[x.guid].index) for x in r.ls.sorted]))
+                                logger.debug(' Table=%r', ','.join(['%d'%(ns[x.guid].index) for x in r.rt.list]))
                 if self.view: self.view.Refresh()
                 
     def onTimer(self, event): # refresh the view
@@ -370,7 +370,7 @@ def testDHT(frame):
     control.view = frame.panel
 
     # start the multitask as a separate thread.
-    import thread, traceback
+    import _thread, traceback
     from .... import multitask
     def threadproc(arg):
         global sock1, pending, active
@@ -385,11 +385,11 @@ def testDHT(frame):
                 logger.debug('%r %r', s[0], s[1])
                 result = yield s[0](**s[1])
                 if not isinstance(result, list):
-                    print result
+                    print(result)
                 else:
                     logger.debug('%r', result)
-                    values = map(lambda x: x[0], result)
-                    print '\n'.join(values) if values else 'None'
+                    values = [x[0] for x in result]
+                    print('\n'.join(values) if values else 'None')
         def waitonsock(sock):
             global pending
             try:
@@ -401,7 +401,7 @@ def testDHT(frame):
             except StopIteration:
                 raise
             except:
-                print 'waitonsock', sys.exc_info(), traceback.print_exc()
+                print('waitonsock', sys.exc_info(), traceback.print_exc())
         multitask.add(waitonsock(sock1)) # this will trigger multitask out of wait loop
          
         logger.debug('starting multitask.run()')
@@ -409,7 +409,7 @@ def testDHT(frame):
         try: multitask.run()
         except KeyboardInterrupt: interrupt_main()
         except: logger.exception('exception in multitask.run()')
-    thread.start_new_thread(threadproc, (None,))
+    _thread.start_new_thread(threadproc, (None,))
     
 
 

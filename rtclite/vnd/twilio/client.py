@@ -87,15 +87,15 @@ Options:
 '''
 
 import sys, json, logging, threading, time
-from Queue import Queue as thread_Queue
+from queue import Queue as thread_Queue
 
 from ... import multitask
 from ..adobe.rtmpclient import NetConnection, NetStream, Message, Header, FLVReader, FLVWriter, logger as logger_rtmpclient
 
 try: from twilio.util import TwilioCapability
-except ImportError: print 'please install twilio module from https://github.com/twilio/twilio-python'; raise
+except ImportError: print('please install twilio module from https://github.com/twilio/twilio-python'); raise
 try: import audiodev, audiospeex
-except ImportError: print 'please install py-audio modules from https://github.com/theintencity/py-audio'; raise
+except ImportError: print('please install py-audio modules from https://github.com/theintencity/py-audio'); raise
 
 
 logger = logging.getLogger('twilio.client')
@@ -114,26 +114,26 @@ def connect(queue_mic, queue_spk, account, token, app,
 
     params = [ctoken, None, '', info, account, version]
     result = yield nc.connect(url, timeout, *params)
-    if not result: raise StopIteration, 'Failed to connect %r: %r'%(url, nc.error)
+    if not result: raise StopIteration('Failed to connect %r: %r'%(url, nc.error))
     logger.info('connected to %r with args %r', url, params)
     
     ns1 = yield NetStream().create(nc, timeout=timeout)
-    if not ns1: raise StopIteration, 'Failed to create publish stream'
+    if not ns1: raise StopIteration('Failed to create publish stream')
     
     yield nc.client.call('startCall')
     
     ns2 = yield NetStream().create(nc, timeout=timeout)
-    if not ns2: raise StopIteration, 'Failed to create play stream'
+    if not ns2: raise StopIteration('Failed to create play stream')
 
     # get the callsid, how is this used?
     cmd = yield nc.client.queue.get(timeout=timeout)
     if cmd.name == 'callsid': logger.debug('callsid() args=%r', cmd.args)
         
     result = yield ns1.publish('input', timeout=timeout)
-    if not result: yield nc.close(); raise StopIteration, 'Failed to publish stream'
+    if not result: yield nc.close(); raise StopIteration('Failed to publish stream')
     
     result = yield ns2.play('output', timeout=timeout)
-    if not result: yield nc.close(); raise StopIteration, 'Failed to play stream'
+    if not result: yield nc.close(); raise StopIteration('Failed to play stream')
 
     def stream_receiver(ns2, queue_spk, file_writer):
         try:
@@ -280,7 +280,7 @@ if __name__ == '__main__':
     if options.test: sys.exit() # no tests
     
     if options.file_in and options.audio_in:
-        print 'when --file-in is used, --no-audio-in must also be used'
+        print('when --file-in is used, --no-audio-in must also be used')
         sys.exit()
     
     params = dict(account=options.account, token=options.token, app=options.app,
@@ -292,17 +292,17 @@ if __name__ == '__main__':
 
     try:
         if not params['account']:
-            params['account'] = raw_input('Account SID: ').strip()
+            params['account'] = input('Account SID: ').strip()
             if not params['account']: raise RuntimeError
         if not params['token']:
             import getpass
             params['token'] = getpass.getpass('Auth Token: ').strip()
             if not params['token']: raise RuntimeError
         if not params['app']:
-            params['app'] = raw_input('Application SID: ').strip()
+            params['app'] = input('Application SID: ').strip()
             if not params['app']: raise RuntimeError
     except:
-        print 'missing one or more mandatory parameters: account, token or app'
+        print('missing one or more mandatory parameters: account, token or app')
         sys.exit()
     
     logging.basicConfig()
@@ -324,3 +324,4 @@ if __name__ == '__main__':
     except:
         import traceback
         traceback.print_exc()
+

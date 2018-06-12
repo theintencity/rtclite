@@ -426,9 +426,10 @@ Fill in description of the remaining message flows beyond handshake.
 Describe the man-in-middle mode that enables audio/video flowing through the server.
 '''
 
-import os, sys, traceback, urlparse, re, socket, struct, time, random, hmac, hashlib, logging
+import os, sys, traceback, urllib.parse, re, socket, struct, time, random, hmac, hashlib, logging
 from . import amf, rtmp
 from ... import multitask
+from functools import reduce
 
 try:
     from Crypto.Cipher import AES
@@ -436,7 +437,7 @@ try:
     class AESEncrypt(object):
         def __init__(self, key):
             self.key = key[:16]
-            self.iv = ''.join(['\x00' for i in xrange(16)]) # create null-IV
+            self.iv = ''.join(['\x00' for i in range(16)]) # create null-IV
         def encode(self, data):
             self.cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
             result = self.cipher.encrypt(data)
@@ -444,13 +445,13 @@ try:
     class AESDecrypt(object):
         def __init__(self, key):
             self.key = key[:16]
-            self.iv = ''.join(['\x00' for i in xrange(16)]) # create null-IV
+            self.iv = ''.join(['\x00' for i in range(16)]) # create null-IV
         def decode(self, data):
             self.cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
             result = self.cipher.decrypt(data)
             return result
 except ImportError:
-    print 'WARNING: Please install PyCrypto in your PYTHONPATH for faster performance. Falling back to Python aes.py which is *very* slow'
+    print('WARNING: Please install PyCrypto in your PYTHONPATH for faster performance. Falling back to Python aes.py which is *very* slow')
     from . import aes
     
     class AESEncrypt(object):
@@ -481,7 +482,7 @@ def _str2address(value, hasPort=True):
     @param value the binary string representing ip (if hasPort is False) or ip plus port (if hasPort is True).
     @param hasPort if False, then value must not have port. It returns port as 0.
     
-    >>> print _str2address('\x7f\x00\x00\x01\x00\x80')
+    >>> print(_str2address('\x7f\x00\x00\x01\x00\x80'))
     ('127.0.0.1', 128)
     '''
     if hasPort:
@@ -503,7 +504,7 @@ def _address2str(value, hasPort=True):
     @param value the tuple of length 2 of the form ('dotted-ip', port)
     @param hasPort if False, do not represent port in the returned string. The value must always have port.
     
-    >>> print _address2str(('127.0.0.1', 128))
+    >>> print(_address2str(('127.0.0.1', 128)))
     \x7f\x00\x00\x01\x00\x80
     '''
     host, port = value
@@ -557,9 +558,9 @@ def _packAddress(value, publicFlag):
 
 def _url2pathquery(value):
     '''Unpack an rtmfp URL to (path, dict) where dict is query parameters indexed by name, with value as list.'''
-    url1 = urlparse.urlparse(value)
-    url2 = urlparse.urlparse(re.sub('^' + url1.scheme, 'http', value))
-    return (url2.path, urlparse.parse_qs(url2.query))
+    url1 = urllib.parse.urlparse(value)
+    url2 = urllib.parse.urlparse(re.sub('^' + url1.scheme, 'http', value))
+    return (url2.path, urllib.parse.parse_qs(url2.query))
 
 def truncate(data, size=16, pre=8, post=5):
     length, data = len(data), (data if len(data) <= size else data[:pre] + '...' + data[-post:])
@@ -571,10 +572,10 @@ def truncate(data, size=16, pre=8, post=5):
 #--------------------------------------
 
 _key = 'Adobe Systems 02'
-_int2bin = lambda x, size: (''.join(chr(a) for a in [((x>>c)&0x0ff) for c in xrange((size-1)*8,-8,-8)])) if x is not None else '\x00'*size
-_bin2int = lambda x: long(''.join('%02x'%(ord(a)) for a in x), 16)
+_int2bin = lambda x, size: (''.join(chr(a) for a in [((x>>c)&0x0ff) for c in range((size-1)*8,-8,-8)])) if x is not None else '\x00'*size
+_bin2int = lambda x: int(''.join('%02x'%(ord(a)) for a in x), 16)
 _dh1024p = _bin2int('\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xC9\x0F\xDA\xA2\x21\x68\xC2\x34\xC4\xC6\x62\x8B\x80\xDC\x1C\xD1\x29\x02\x4E\x08\x8A\x67\xCC\x74\x02\x0B\xBE\xA6\x3B\x13\x9B\x22\x51\x4A\x08\x79\x8E\x34\x04\xDD\xEF\x95\x19\xB3\xCD\x3A\x43\x1B\x30\x2B\x0A\x6D\xF2\x5F\x14\x37\x4F\xE1\x35\x6D\x6D\x51\xC2\x45\xE4\x85\xB5\x76\x62\x5E\x7E\xC6\xF4\x4C\x42\xE9\xA6\x37\xED\x6B\x0B\xFF\x5C\xB6\xF4\x06\xB7\xED\xEE\x38\x6B\xFB\x5A\x89\x9F\xA5\xAE\x9F\x24\x11\x7C\x4B\x1F\xE6\x49\x28\x66\x51\xEC\xE6\x53\x81\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF')
-_random = lambda size: ''.join([chr(random.randint(0, 255)) for i in xrange(size)])
+_random = lambda size: ''.join([chr(random.randint(0, 255)) for i in range(size)])
 _bin2hex = lambda data: ''.join(['%02x'%(ord(x),) for x in data])
 
 def _checkSum(data):
@@ -593,7 +594,7 @@ def _decode(decoder, data):
 
 def _encode(encoder, data):
     plen = (0xffffffff - len(data) + 5) & 0x0f # 4-bytes header, plen = 16*N - len for some int N and 0 <= plen < 16 (128 bits)
-    data += ''.join(['\xff' for i in xrange(plen)])
+    data += ''.join(['\xff' for i in range(plen)])
     data = data[:4] + struct.pack('>H', _checkSum(data[6:])) + data[6:]
     return data[:4] + encoder.encode(data[4:])
 
@@ -798,7 +799,7 @@ class Publication(object):
     def __init__(self, name):
         self.publisherId, self.name, self._time, self._firstKeyFrame, self._listeners, self.videoQoS, self.audioQoS = 0, name, 0, False, {}, QoS(), QoS()
     def close(self):
-        for item in self._listeners.values():
+        for item in list(self._listeners.values()):
             item.close()
         self._listeners.clear()
     def addListener(self, client, id, writer, unbuffered):
@@ -947,7 +948,7 @@ class Flow(object):
         if flags & self.ABANDONMENT or self.stage < (stage - deltaNack):
             logger.debug('Flow.fragmentHandler() abandonment signal flag: %02x', flags)
             toRemove = []
-            for index, frag in self.fragments.iteritems():
+            for index, frag in self.fragments.items():
                 if index > stage: # abandon all stages <= stage
                     break
                 if index <= (stage - 1):
@@ -966,7 +967,7 @@ class Flow(object):
             self.fragmentSortedHandler(nextStage, fragment, flags)
             nextStage += 1
             toRemove = []
-            for index, frag in self.fragments.iteritems():
+            for index, frag in self.fragments.items():
                 if index > nextStage:
                     break
                 self.fragmentSortedHandler(nextStage, frag.data, frag.flags)
@@ -1132,7 +1133,7 @@ class FlowNull(Flow):
 
 class FlowStream(Flow):
     signature = '\x00\x54\x43\x04'
-    IDLE, PUBLISHING, PLAYING = range(3)
+    IDLE, PUBLISHING, PLAYING = list(range(3))
     def __init__(self, id, signature, peer, server, session):
         Flow.__init__(self, id, signature, peer, server, session)
         self._state, self._isVideo, self._lostFragments = FlowStream.IDLE, False, 0
@@ -1587,7 +1588,7 @@ class Session(object):
         self.kill()
         if self.peer.state != 'none':
             if _debug: 'onDisconnect client handler has not been called on the session', self.id
-        for flow in self._flows.itervalues():
+        for flow in self._flows.values():
             flow.close()
     
     def kill(self):
@@ -1610,7 +1611,7 @@ class Session(object):
         if self._recvTs <= time.time() - 120 and not self.keepAlive(): # start keepalive server after 2 min.
             return
         toDelete = []
-        for id, flowWriter in self._flowWriters.iteritems():
+        for id, flowWriter in self._flowWriters.items():
             if flowWriter.consumed:
                 flowWriter.clearMessages()
                 toDelete.append(id)
@@ -1641,7 +1642,7 @@ class Session(object):
         self.failed = True
         if self.peer.state != Peer.NONE:
             self.server.onFailed(self.peer, error)
-        for flowWriter in self._flowWriters.itervalues():
+        for flowWriter in self._flowWriters.values():
             flowWriter.close()
         self._writer.clear()
         self.peer.close()
@@ -1861,7 +1862,7 @@ class Session(object):
             self._nextFlowWriterId += 1
         flowWriter.id = self._nextFlowWriterId
         if len(self._flows) > 0:
-            flowWriter.flowId = self._flows.values()[0].id
+            flowWriter.flowId = list(self._flows.values())[0].id
         self._flowWriters[self._nextFlowWriterId] = flowWriter
 
     def resetFlowWriter(self, flowWriter):
@@ -1879,18 +1880,18 @@ class Handshake(Session):
         logger.debug('Handshake() server id=%r', hashlib.sha256(self._certificate).digest())
     
     def close(self):
-        for item in self._cookies.values():
+        for item in list(self._cookies.values()):
             item.close()
         self._cookies.clear()
         
     def manage(self):
-        toRemove = [cookieId for cookieId, cookie in self._cookies.iteritems() if cookie.obsolete]
+        toRemove = [cookieId for cookieId, cookie in self._cookies.items() if cookie.obsolete]
         for cookieId in toRemove:
             del self._cookies[cookieId]
 
     def commitCookie(self, session):
         session.checked = True
-        toRemove = [cookieId for cookieId, cookie in self._cookies.iteritems() if cookie.id == session.id]
+        toRemove = [cookieId for cookieId, cookie in self._cookies.items() if cookie.id == session.id]
         for cookieId in toRemove:
             del self._cookies[cookieId]
         if not toRemove:
@@ -2283,7 +2284,7 @@ class Middle(Session):
                             if flagType == 0x0b and stage == 0x01 and (marker == 0x4e and idFlow == 0x03 or marker == 0x8e and idFlow == 0x05):
                                 middlePeerIdWanted, content = content[:32], content[32:]
                                 nbPeerSent += 1
-                                for middle in self.sessions.itervalues():
+                                for middle in self.sessions.values():
                                     if middle.middlePeer == middlePeerIdWanted:
                                         middlePeerIdWanted = middle.peer.id
                                         break
@@ -2352,7 +2353,7 @@ class FlashServer(rtmp.FlashServer):
     def stop(self):
         rtmp.FlashServer.stop(self)
         self._handshake.close()
-        for session in self.sessions.itervalues(): session.close()
+        for session in self.sessions.values(): session.close()
         self.sessions.clear()
         if self.sockUdp:
             try: self.sockUdp.close(); self.sockUdp = None
@@ -2444,9 +2445,9 @@ class FlashServer(rtmp.FlashServer):
     
     def handshakeP2P(self, tag, address, peerIdWanted):
         # TODO: we need a better way to associate the session based on the far-id parameter?
-        found = [session for session in self.sessions.itervalues() if session.peer.address == address and session != self._handshake]
+        found = [session for session in self.sessions.values() if session.peer.address == address and session != self._handshake]
         session = found and found[0] or None
-        sessionWanted = ([s for s in self.sessions.itervalues() if s.peer and s.peer.id == peerIdWanted] + [None])[0]
+        sessionWanted = ([s for s in self.sessions.values() if s.peer and s.peer.id == peerIdWanted] + [None])[0]
         logger.debug('   p2p-handshake tag=%r address=%r peerIdWanted=%r found session.id=%r session wanted=%r', tag, address, peerIdWanted, session and session.id, sessionWanted and sessionWanted.id)
         # TODO: ignoring cirrus case
         if not sessionWanted:
@@ -2487,7 +2488,7 @@ class FlashServer(rtmp.FlashServer):
         self._timeLastManage = time.time()
         self._handshake.manage()
         toDelete = []
-        for sessionId, session in self.sessions.iteritems():
+        for sessionId, session in self.sessions.items():
             session.manage()
             if sessionId != 0 and session.died:
                 logger.debug('FlashServer.manage() note: session %u died', session.id)
@@ -2579,3 +2580,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     logger.info('%s Flash Server Stops', time.asctime())
+

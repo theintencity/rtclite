@@ -8,9 +8,9 @@ main multitask thread while doing XML-RPC.
 
 import hashlib
 from .... import multitask
-from xmlrpclib import ServerProxy, Binary
+from xmlrpc.client import ServerProxy, Binary
 
-print 'warning: this module no longer works, because the corresponding opendht service is unavailable'
+print('warning: this module no longer works, because the corresponding opendht service is unavailable')
 
 # _gateway = 'http://opendht.nyuld.net:5851/'
 _gateway = 'http://planetlab3.ucsd.edu:5851/' # an alternative gateway
@@ -70,9 +70,10 @@ class Connector(object):
 if __name__ == '__main__':
     import sys
     if sys.argv[-1] == '--test': sys.exit()
-    print put('kundan', 'Kundan Singh')
-    print get('kundan')
-    print put('kundan', 'Munna', 'donttell')
-    print get('kundan')
-    print remove('kundan', 'Munna', 'donttell')
-    print get('kundan')
+    print(put('kundan', 'Kundan Singh'))
+    print(get('kundan'))
+    print(put('kundan', 'Munna', 'donttell'))
+    print(get('kundan'))
+    print(remove('kundan', 'Munna', 'donttell'))
+    print(get('kundan'))
+

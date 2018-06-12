@@ -135,3 +135,4 @@ class Proxy(rfc3261_Proxy):
         super(Proxy, self).__init__(*args, **kwargs)
         assert isinstance(self.stack, Stack), 'must use rfc5658.Stack instead of rfc3261.Stack'
         
+

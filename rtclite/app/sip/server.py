@@ -39,7 +39,7 @@ if __name__ == '__main__': # parse command line options, and set the high level 
     if not options.local: options.local = ['0.0.0.0:5060']
     if not options.transport: options.transport = ['udp']
     if len(options.local) != len(options.transport):
-        print 'must use multiple --local option with multiple --transport option'
+        print('must use multiple --local option with multiple --transport option')
         sys.exit(-1)
         
     handler = ColorizingStreamHandler(stream=sys.stdout)
@@ -115,10 +115,11 @@ def route(event):
             logger.debug('proxying non-invite non-local request')
             event.location = event.uri
             return event.action.proxy()
-    event.location = map(lambda x: x.value.uri, event.agent.location.locate(str(event.uri).lower()))
+    event.location = [x.value.uri for x in event.agent.location.locate(str(event.uri).lower())]
     logger.debug('locate returned %r', event.location)
     return event.action.proxy(recordRoute=(event.method=='INVITE'))
 
 if __name__ == '__main__': 
     agent.attach('incoming', route)
     sipapi.run()  # the loop to process the SIP listening point
+

@@ -69,7 +69,7 @@ def createSockets(preferred=('0.0.0.0', 0)):
         try: mcast.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         except AttributeError: pass # ignore if no REUSEPORT 
         try: mcast.bind((addr, port))
-        except socket.error, E: # on windows we get this error (10049) when binding to multicast addr 
+        except socket.error as E: # on windows we get this error (10049) when binding to multicast addr 
             if E[0] == 10049: 
                 mcast.close()
                 mcast = socket.socket(type=socket.SOCK_DGRAM) # we need to create a new socket otherwise it gives 10022 Invalid argument error on second bind
@@ -143,16 +143,16 @@ class Network(object):
     def __del__(self):
         if self.mcast is not None:
             self.mcast.setsockopt(socket.IPPROTO_IP, socket.IP_DROP_MEMBERSHIP, socket.inet_aton(ADDRESS) + socket.inet_aton('0.0.0.0'))
-        for x in ('udp', 'tcp', 'mcast'): exec 'if self.%s is not None: self.%s.close(); self.%s = None'%(x, x, x)
+        for x in ('udp', 'tcp', 'mcast'): exec('if self.%s is not None: self.%s.close(); self.%s = None'%(x, x, x))
 
     def start(self):
-        for g,f in dict(gen='udpreceiver', gentcp='tcpreceiver', genmcast='mcastreceiver').items():
-            exec 'if self.%s is None: self.%s = self.%s(); multitask.add(self.%s)'%(g, g, f, g)
+        for g,f in list(dict(gen='udpreceiver', gentcp='tcpreceiver', genmcast='mcastreceiver').items()):
+            exec('if self.%s is None: self.%s = self.%s(); multitask.add(self.%s)'%(g, g, f, g))
         return self
     
     def stop(self):
         for x in ('gen', 'gentcp', 'genmcast'): 
-            exec 'if self.%s is not None: self.%s.close(); self.%s = None'%(x, x, x)
+            exec('if self.%s is not None: self.%s.close(); self.%s = None'%(x, x, x))
         return self
 
     def parse(self, data, addr, type):
@@ -228,7 +228,7 @@ class Network(object):
                 msg['remote'] = remote # put remote as an attribute in msg before putting on queue.
                 yield self.put(msg)    # put the parsed msg so that other interested party may get it.
         finally: 
-            toremove = map(lambda y: y[0], filter(lambda x: x[1] == sock, self.tcpc.items()))
+            toremove = [y[0] for y in [x for x in list(self.tcpc.items()) if x[1] == sock]]
             for node in toremove: del self.tcpc[node]
                 
     def send(self, msg, node, timeout=None):
@@ -256,7 +256,7 @@ class Network(object):
                         ret = select.select((), (sock,), (), 0)
                         if len(ret[1]) == 0:
                             logger.debug('connection timedout to %s', node.hostport)
-                            raise multitask.Timeout, 'Cannot connect to the destination'
+                            raise multitask.Timeout('Cannot connect to the destination')
                     self.tcpc[node] = sock
                     # yield multitask.sleep()
                     multitask.add(self.tcphandler(sock, (node.ip, node.port)))
@@ -505,7 +505,7 @@ class ServerSocket(object):
         if self._gens:
             for gen in self._gens: gen.close()
             self._gens[:] = []
-        for x in ('client', 'storage', 'router', 'net'): exec 'if self.%s: self.%s.stop(); self.%s = None'%(x, x, x)
+        for x in ('client', 'storage', 'router', 'net'): exec('if self.%s: self.%s.stop(); self.%s = None'%(x, x, x))
         return self
     
     @property
@@ -581,7 +581,7 @@ class ServerSocket(object):
         '''Connect to the given identity. It returns a Socket object on success or None on error.'''
         values = yield self.get(guid=H(identity))
         logger.debug('connect() found values=%r', values)
-        for value in map(lambda x: x.value, values):
+        for value in [x.value for x in values]:
             try: value = int(value)
             except: logger.error('invalid non-integer value=%r', value); continue
             sock = Socket(sock=self, peer=(identity, value), server=False)
@@ -609,7 +609,7 @@ class ServerSocket(object):
     def sendto(self, identity, data, timeout=30):
         '''Send a single data object to the remote peer in datagram mode.'''
         values = yield self.get(guid=H(identity))
-        for value in map(lambda x: x.value, values):
+        for value in [x.value for x in values]:
             try: value = int(value)
             except: logger.error('invalid non-integer value=%r', value); continue
             seq = dht._seq = dht._seq + 1
@@ -649,7 +649,7 @@ def _testServerSocket():
 def _testAlgorithm():
     def testInternal():
         nodes = [ServerSocket(True).start()]
-        for x in xrange(10):
+        for x in range(10):
             nodes.append(ServerSocket().start())
         yield multitask.sleep(10)
         for node in nodes:
@@ -672,5 +672,6 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
 
-    print 'stopping the test'
+    print('stopping the test')
     sys.exit()
+

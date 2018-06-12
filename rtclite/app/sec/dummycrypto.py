@@ -30,3 +30,4 @@ def generateRSA(bits=1024): Ks = PrivateKey(n=10,e=10,d=10,p=10,q=10,dmp1=10,dmq
 def extractPublicKey(Ks): return PublicKey(n=Ks.n,e=Ks.e,_data=Ks._data,_bits=Ks._bits)
 def sign(Ks, hash): return str(hash)
 def verify(Kp, hash, signature): return str(hash) == signature
+

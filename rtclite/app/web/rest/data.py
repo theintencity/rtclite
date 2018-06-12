@@ -35,7 +35,7 @@ class Request(object):
         hdr = self.env.get('HTTP_AUTHORIZATION', None)
         if not hdr: 
             return (None, '401 Missing Authorization')
-        authMethod, value = map(str.strip, hdr.split(' ', 1))
+        authMethod, value = list(map(str.strip, hdr.split(' ', 1)))
         if authMethod != 'Basic': 
             return (None, '401 Unsupported Auth Method %s'%(authMethod,))
         user, password = base64.b64decode(value).split(':', 1)
@@ -53,23 +53,23 @@ class Request(object):
     # throw the 401 response with appropriate header
     def unauthorized(self, realm, reason='401 Unauthorized'):
         self.start_response(reason, [('WWW-Authenticate', 'Basic realm="%s"'%(realm,))])
-        raise rest.Status, reason
+        raise rest.Status(reason)
     
     def getBody(self):
         try: 
             self.env['BODY'] = self.env['wsgi.input'].read(int(self.env['CONTENT_LENGTH']))
         except (TypeError, ValueError): 
-            raise rest.Status, '400 Invalid Content-Length'
+            raise rest.Status('400 Invalid Content-Length')
         if self.env['CONTENT_TYPE'].lower() == 'application/json' and self.env['BODY']: 
             try: 
                 self.env['BODY'] = json.loads(self.env['BODY'])
             except: 
-                raise rest.Status, '400 Invalid JSON content'
+                raise rest.Status('400 Invalid JSON content')
         return self.env['BODY']
     
     def verifyAccess(self, user, type, obj):
         if not obj: 
-            raise rest.Status, '404 Not Found'
+            raise rest.Status('404 Not Found')
         if '_access' in obj: 
             self.access = obj['_access']
         if '_owner' in obj:
@@ -77,14 +77,14 @@ class Request(object):
         index = {'r': 1, 'w': 2, 'x': 3}[type]
         if not (user == self.user and self.access[index] != '-' \
                 or user != self.user and self.access[6+index] != '-'):
-            raise rest.Status, '403 Forbidden'
+            raise rest.Status('403 Forbidden')
     
     def represent(self, obj):
         prefix = self.env['SCRIPT_NAME'] + self.env['PATH_INFO']
         if isinstance(obj, list):
             result = [(':id', '%s/%d'%(prefix, i,)) if isinstance(v, dict) and '_access' in v else self.represent(v) for i, v in enumerate(obj)]
         elif isinstance(obj, dict):
-            result = tuple([('%s:id'%(k,), '%s/%s'%(prefix, k)) if isinstance(v, dict) and '_access' in v else (k, self.represent(v)) for k, v in obj.iteritems() if not k.startswith('_')])
+            result = tuple([('%s:id'%(k,), '%s/%s'%(prefix, k)) if isinstance(v, dict) and '_access' in v else (k, self.represent(v)) for k, v in obj.items() if not k.startswith('_')])
         else:
             result = obj
         return result
@@ -97,14 +97,14 @@ class Data(object):
         if isinstance(obj, dict): return obj[item]
         elif isinstance(obj, list): 
             try: index = int(item)
-            except: raise rest.Status, '400 Bad Request'
-            if index < 0 or index >= len(obj): raise rest.Status, '400 Bad Request'
+            except: raise rest.Status('400 Bad Request')
+            if index < 0 or index >= len(obj): raise rest.Status('400 Bad Request')
             return obj[index]
         elif hasattr(obj, item): return obj.__dict__[item]
         else: return None
         
     def handler(self, env, start_response):
-        print 'restdata.handler()', env['SCRIPT_NAME'], env['PATH_INFO']
+        print('restdata.handler()', env['SCRIPT_NAME'], env['PATH_INFO'])
         request = Request(env, start_response)
         user, reason = request.getAuthUser(self.users, self.realm, addIfMissing=True)
         if not user or not reason.startswith('200'): 
@@ -121,7 +121,7 @@ class Data(object):
                 request.verifyAccess(user, 'x', current)
                 current = self.traverse(current, item)
             if not isinstance(current, list): 
-                raise rest.Status, '405 Method Not Allowed'
+                raise rest.Status('405 Method Not Allowed')
             value = request.getBody()
             current += value
         elif request.method == 'PUT':
@@ -131,7 +131,7 @@ class Data(object):
                 current[item] = value
             elif isinstance(current, list): 
                 try: index = int(item)
-                except: raise rest.Status, '400 Bad Request'
+                except: raise rest.Status('400 Bad Request')
                 if index < 0: current.insert(0, value)
                 elif index >= len(current): current.append(value)
                 else: current[index] = value
@@ -143,8 +143,8 @@ class Data(object):
                 del current[item]
             elif isinstance(current, list): 
                 try: index = int(item)
-                except: raise rest.Status, '400 Bad Request'
-                if index < 0 or index >= len(current): raise rest.Status, '400 Bad Request'
+                except: raise rest.Status('400 Bad Request')
+                if index < 0 or index >= len(current): raise rest.Status('400 Bad Request')
                 else: del current[index]
             elif hasattr(current, item): 
                 del current.__dict__[item]
@@ -157,7 +157,7 @@ class Data(object):
             type, value = rest.represent(result, type=env.get('ACCEPT', 'application/json'))
             start_response('200 OK', [('Content-Type', type)])
             return [value]
-        else: raise rest.Status, '501 Method Not Implemented'
+        else: raise rest.Status('501 Method Not Implemented')
 
 def bind(data, users=None):
     '''The bind method to bind the returned wsgi application to the supplied data and users.
@@ -169,3 +169,4 @@ def bind(data, users=None):
     def handler(env, start_response):
         return data.handler(env, start_response)
     return handler
+

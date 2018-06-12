@@ -166,9 +166,9 @@ class Message(object):
     
     # define properties type, streamId and time to access self.header.(property)
     for p in ['type', 'streamId', 'time']:
-        exec 'def _g%s(self): return self.header.%s'%(p, p)
-        exec 'def _s%s(self, %s): self.header.%s = %s'%(p, p, p, p)
-        exec '%s = property(fget=_g%s, fset=_s%s)'%(p, p, p)
+        exec('def _g%s(self): return self.header.%s'%(p, p))
+        exec('def _s%s(self, %s): self.header.%s = %s'%(p, p, p, p))
+        exec('%s = property(fget=_g%s, fset=_s%s)'%(p, p, p))
     @property
     def size(self): return len(self.data)
             
@@ -180,13 +180,13 @@ class Message(object):
                 
 class Protocol(object):
     PING_SIZE, DEFAULT_CHUNK_SIZE, HIGH_WRITE_CHUNK_SIZE, PROTOCOL_CHANNEL_ID = 1536, 128, 4096, 2 # constants
-    READ_WIN_SIZE, WRITE_WIN_SIZE = 1000000L, 1073741824L
+    READ_WIN_SIZE, WRITE_WIN_SIZE = 1000000, 1073741824
     
     def __init__(self, sock):
         self.stream = SockStream(sock)
         self.lastReadHeaders, self.incompletePackets, self.lastWriteHeaders = dict(), dict(), dict()
         self.readChunkSize = self.writeChunkSize = Protocol.DEFAULT_CHUNK_SIZE
-        self.readWinSize0, self.readWinSize, self.writeWinSize0, self.writeWinSize = 0L, self.READ_WIN_SIZE, 0L, self.WRITE_WIN_SIZE
+        self.readWinSize0, self.readWinSize, self.writeWinSize0, self.writeWinSize = 0, self.READ_WIN_SIZE, 0, self.WRITE_WIN_SIZE
         self.nextChannelId = Protocol.PROTOCOL_CHANNEL_ID + 1
         self._time0 = time.time()
         self.writeQueue = multitask.Queue()
@@ -282,7 +282,7 @@ class Protocol(object):
                 scheme = 0
             client_dh_offset = (sum([ord(data[i]) for i in range(768, 772)]) % 632 + 8) if scheme == 1 else (sum([ord(data[i]) for i in range(1532, 1536)]) % 632 + 772)
             outgoingKp = data[client_dh_offset:client_dh_offset+128]
-            handshake = struct.pack('>IBBBB', 0, 1, 2, 3, 4) + ''.join([chr(random.randint(0, 255)) for i in xrange(Protocol.PING_SIZE-8)])
+            handshake = struct.pack('>IBBBB', 0, 1, 2, 3, 4) + ''.join([chr(random.randint(0, 255)) for i in range(Protocol.PING_SIZE-8)])
             server_dh_offset = (sum([ord(handshake[i]) for i in range(768, 772)]) % 632 + 8) if scheme == 1 else (sum([ord(handshake[i]) for i in range(1532, 1536)]) % 632 + 772)
             keys = Protocol._generateKeyPair() # (public, private)
             handshake = handshake[:server_dh_offset] + keys[0][0:128] + handshake[server_dh_offset+128:]
@@ -295,7 +295,7 @@ class Protocol(object):
             key_challenge_offset = (sum([ord(buffer[i]) for i in range(772, 776)]) % 728 + 776) if scheme == 1 else (sum([ord(buffer[i]) for i in range(8, 12)]) % 728 + 12)
             challenge_key = data[key_challenge_offset:key_challenge_offset+32]
             hash = Protocol._calculateHash(challenge_key, Protocol.SERVER_KEY[:68])
-            rand_bytes = ''.join([chr(random.randint(0, 255)) for i in xrange(Protocol.PING_SIZE-32)])
+            rand_bytes = ''.join([chr(random.randint(0, 255)) for i in range(Protocol.PING_SIZE-32)])
             last_hash = Protocol._calculateHash(rand_bytes, hash[:32])
             output = chr(type) + handshake + rand_bytes + last_hash
             return output
@@ -306,7 +306,7 @@ class Protocol(object):
         
     @staticmethod
     def _generateKeyPair(): # dummy key pair since we don't support encryption
-        return (''.join([chr(random.randint(0, 255)) for i in xrange(128)]), '')
+        return (''.join([chr(random.randint(0, 255)) for i in range(128)]), '')
         
     def parseMessages(self):
         '''Parses complete messages until connection closed. Raises ConnectionLost exception.'''
@@ -321,7 +321,7 @@ class Protocol(object):
                 channel = 64 + ord(data[0]) + 256 * ord(data[1])
 
             hdrtype = hdrsize & Header.MASK   # read header type byte
-            if hdrtype == Header.FULL or not self.lastReadHeaders.has_key(channel):
+            if hdrtype == Header.FULL or channel not in self.lastReadHeaders:
                 header = Header(channel)
                 self.lastReadHeaders[channel] = header
             else:
@@ -438,7 +438,7 @@ class Protocol(object):
                 break
             
             # get the header stored for the stream
-            if self.lastWriteHeaders.has_key(message.streamId):
+            if message.streamId in self.lastWriteHeaders:
                 header = self.lastWriteHeaders[message.streamId]
             else:
                 if self.nextChannelId <= Protocol.PROTOCOL_CHANNEL_ID: self.nextChannelId = Protocol.PROTOCOL_CHANNEL_ID+1
@@ -562,7 +562,7 @@ class FLV(object):
         self.fname = self.fp = self.type = None
         self.tsp = self.tsr = 0; self.tsr0 = None
     
-    def open(self, path, type='read', mode=0775):
+    def open(self, path, type='read', mode=0o775):
         '''Open the file for reading (type=read) or writing (type=record or append).'''
         if str(path).find('/../') >= 0 or str(path).find('\\..\\') >= 0: raise ValueError('Must not contain .. in name')
         logger.debug('opening file %r', path)
@@ -1070,7 +1070,7 @@ class FlashServer(object):
             if client.path in self.clients:
                 inst = self.clients[client.path][0]
                 self.clients[client.path].remove(client)
-            for stream in client.streams.values(): # for all streams of this client
+            for stream in list(client.streams.values()): # for all streams of this client
                 self.closehandler(stream)
             client.streams.clear() # and clear the collection of streams
             if client.path in self.clients and len(self.clients[client.path]) == 1: # no more clients left, delete the instance.
@@ -1164,14 +1164,14 @@ class FlashServer(object):
             if stream.name and '?' in stream.name: stream.name = stream.name.partition('?')[0]
             inst = self.clients[stream.client.path][0]
             if (stream.name in inst.publishers):
-                raise ValueError, 'Stream name already in use'
+                raise ValueError('Stream name already in use')
             inst.publishers[stream.name] = stream # store the client for publisher
             inst.onPublish(stream.client, stream)
             
             stream.recordfile = inst.getfile(stream.client.path, stream.name, self.root, stream.mode)
             response = Command(name='onStatus', id=cmd.id, tm=stream.client.relativeTime, args=[amf.Object(level='status', code='NetStream.Publish.Start', description='', details=None)])
             yield stream.send(response)
-        except ValueError, E: # some error occurred. inform the app.
+        except ValueError as E: # some error occurred. inform the app.
             logger.exception('error in publishing stream')
             response = Command(name='onStatus', id=cmd.id, tm=stream.client.relativeTime, args=[amf.Object(level='error',code='NetStream.Publish.BadName',description=str(E),details=None)])
             yield stream.send(response)
@@ -1193,7 +1193,7 @@ class FlashServer(object):
                 if stream.playfile:
                     if start > 0: stream.playfile.seek(start)
                     task = stream.playfile.reader(stream)
-                elif start >= 0: raise ValueError, 'Stream name not found'
+                elif start >= 0: raise ValueError('Stream name not found')
             logger.debug('playing stream=%r start=%r', name, start)
             inst.onPlay(stream.client, stream)
             
@@ -1222,7 +1222,7 @@ class FlashServer(object):
 #            yield stream.send(response)
             
             if task is not None: multitask.add(task)
-        except ValueError, E: # some error occurred. inform the app.
+        except ValueError as E: # some error occurred. inform the app.
             logger.exception('error in playing stream')
             response = Command(name='onStatus', id=cmd.id, tm=stream.client.relativeTime, args=[amf.Object(level='error',code='NetStream.Play.StreamNotFound',description=str(E),details=None)])
             yield stream.send(response)
@@ -1232,11 +1232,11 @@ class FlashServer(object):
         try:
             offset = cmd.args[0]
             if stream.playfile is None or stream.playfile.type != 'read': 
-                raise ValueError, 'Stream is not seekable'
+                raise ValueError('Stream is not seekable')
             stream.playfile.seek(offset)
             response = Command(name='onStatus', id=cmd.id, tm=stream.client.relativeTime, args=[amf.Object(level='status',code='NetStream.Seek.Notify', description=stream.name, details=None)])
             yield stream.send(response)
-        except ValueError, E: # some error occurred. inform the app.
+        except ValueError as E: # some error occurred. inform the app.
             logger.exception('error in seeking stream')
             response = Command(name='onStatus', id=cmd.id, tm=stream.client.relativeTime, args=[amf.Object(level='error',code='NetStream.Seek.Failed',description=str(E),details=None)])
             yield stream.send(response)
@@ -1280,3 +1280,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     logger.debug('%s Flash Server Stops', time.asctime())
+

@@ -771,7 +771,7 @@ class Context(object):
                     for message in messages:
                         logger_media.debug('f<-  type=%r len=%r time=%r codec=0x%02x', message.type, message.size, message.time, message.data and ord(message.data[0]) or -1)
                         yield self.play_stream.send(message)
-        except (ValueError, AttributeError), E: logger.exception('exception in sip_data')
+        except (ValueError, AttributeError) as E: logger.exception('exception in sip_data')
         yield
 
     def rtmp_data(self, stream, message): # handle media data message received from RTMP
@@ -949,7 +949,7 @@ class MediaContext(object):
                 logger.debug('probably out of order packet')
                 return
             self._flv2_rxchunks.append(payload[6:])
-        got = sum(map(lambda x: len(x), self._flv2_rxchunks), 0)
+        got = sum([len(x) for x in self._flv2_rxchunks], 0)
         if got < self._flv2_rxlen: return # not all chunk is received yet
         if got > self._flv2_rxlen:
             logger.debug('unexpected error, got more than expected %d > %d', got, self._flv2_rxlen)
@@ -1197,7 +1197,7 @@ class MediaContext(object):
                     payload = audioop.lin2ulaw(linear, 2)
                 elif str(fmt.name).lower() == 'pcma' and fmt.rate == 8000 or fmt.pt == 8:
                     payload = audioop.lin2alaw(linear, 2)
-                else: raise ValueError, 'ignoring unsupported payload type %r %r/%r'%(fmt.pt, fmt.name, fmt.rate)
+                else: raise ValueError('ignoring unsupported payload type %r %r/%r'%(fmt.pt, fmt.name, fmt.rate))
         # TODO: map from RTMP timestamp to RTP
         if fmt: self._au1_ts += (fmt.rate * 20 / 1000) # assume 20 ms at 8000 or 16000 Hz
         return [(payload, self._au1_ts, False, fmt)] if payload and fmt else None
@@ -1213,7 +1213,7 @@ class MediaContext(object):
             elif str(fmt.name).lower() == 'pcma' and fmt.rate == 8000 or fmt.pt == 8:
                 type = '\x72'
             else:
-                raise ValueError, 'ignoring unsupported payload type %r %r/%r'%(fmt.pt, fmt.name, fmt.rate)
+                raise ValueError('ignoring unsupported payload type %r %r/%r'%(fmt.pt, fmt.name, fmt.rate))
         elif str(fmt.name).lower() == 'speex': # no transcoding since Flash supports speex 8000/16000 anyway
             type, speex_data, input_rate = '\xb2', p.payload, fmt.rate
         else: # perform transcoding from self._au1_fmt to speex/8000
@@ -1223,7 +1223,7 @@ class MediaContext(object):
             elif str(fmt.name).lower() == 'pcma' and fmt.rate == 8000 or fmt.pt == 8:
                 linear = audioop.alaw2lin(p.payload, 2)
             else: 
-                raise ValueError, 'ignoring unsupported payload type %r %r/%r'%(fmt.pt, fmt.name, fmt.rate)
+                raise ValueError('ignoring unsupported payload type %r %r/%r'%(fmt.pt, fmt.name, fmt.rate))
             # TODO: never send speex/16000 to Flash after transcoding
             speex_data, self._au2_lin2speex = audiospeex.lin2speex(linear, sample_rate=8000, state=self._au2_lin2speex)
         if self._au2_ssrc and p.ssrc != self._au2_ssrc: # ssrc has probably changed, so reset timers.
@@ -1337,3 +1337,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     logger.debug('%s Flash Server Stops', time.asctime())
+

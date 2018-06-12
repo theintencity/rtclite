@@ -54,7 +54,7 @@ two unrelated tasks to run concurrently:
 
   >>> def printer(message):
   ...     while True:
-  ...         print message
+  ...         print(message)
   ...         yield
   ... 
   >>> multitask.add(printer('hello'))
@@ -96,13 +96,13 @@ value(s) to the StopIteration constructor.  An unhandled exception
 raised within a child task is propagated to its parent.  For example:
 
   >>> def parent():
-  ...     print (yield return_none())
-  ...     print (yield return_one())
-  ...     print (yield return_many())
+  ...     print((yield return_none()))
+  ...     print((yield return_one()))
+  ...     print((yield return_many()))
   ...     try:
   ...         yield raise_exception()
-  ...     except Exception, e:
-  ...         print 'caught exception: %s' % e
+  ...     except Exception as e:
+  ...         print('caught exception: %s' % e)
   ... 
   >>> def return_none():
   ...     yield
@@ -321,7 +321,7 @@ class FDReady(YieldCondition):
 
 
 def _is_file_descriptor(fd):
-    return isinstance(fd, (int, long))
+    return isinstance(fd, int)
 
 
 def readable(fd, timeout=None):
@@ -728,7 +728,7 @@ class SmartQueue(object):
     def _get(self, criteria=None):
         #self._pending = filter(lambda x: x[1]<=now, self._pending) # remove expired ones
         if criteria:
-            found = filter(lambda x: criteria(x), self._pending)   # check any matching criteria
+            found = [x for x in self._pending if criteria(x)]   # check any matching criteria
             if found: 
                 self._pending.remove(found[0])
                 return found[0]
@@ -966,7 +966,7 @@ class TaskManager(object):
                     output = task.throw(*exc_info)
                 else:
                     output = task.send(input)
-            except StopIteration, e:
+            except StopIteration as e:
                 if isinstance(task, _ChildTask):
                     if not e.args:
                         output = None
@@ -1008,7 +1008,7 @@ class TaskManager(object):
             self._remove_bad_file_descriptors()
 #            # kundan - return failure to break from parent loop
             return False
-        except (select.error, IOError), err:
+        except (select.error, IOError) as err:
             if err[0] == errno.EINTR:
 #                # kundan - return failure to break from parent loop
 #                pass
@@ -1226,8 +1226,8 @@ if __name__ == '__main__':
         import socket
 
     def printer(name):
-        for i in xrange(1, 4):
-            print '%s:\t%d' % (name, i)
+        for i in range(1, 4):
+            print('%s:\t%d' % (name, i))
             yield
 
     t = TaskManager()
@@ -1238,33 +1238,33 @@ if __name__ == '__main__':
     queue = Queue()
 
     def receiver():
-        print 'receiver started'
-        print 'receiver received: %s' % (yield queue.get())
-        print 'receiver finished'
+        print('receiver started')
+        print('receiver received: %s' % (yield queue.get()))
+        print('receiver finished')
 
     def sender():
-        print 'sender started'
+        print('sender started')
         yield queue.put('from sender')
-        print 'sender finished'
+        print('sender finished')
 
     def bad_descriptor():
-        print 'bad_descriptor running'
+        print('bad_descriptor running')
         try:
             yield readable(12)
         except:
-            print 'exception in bad_descriptor:', sys.exc_info()[1]
+            print('exception in bad_descriptor:', sys.exc_info()[1])
 
     def sleeper():
-        print 'sleeper started'
+        print('sleeper started')
         yield sleep(1)
-        print 'sleeper finished'
+        print('sleeper finished')
 
     def timeout_immediately():
-        print 'timeout_immediately running'
+        print('timeout_immediately running')
         try:
             yield Queue().get(timeout=0)
         except Timeout:
-            print 'timeout_immediately timed out'
+            print('timeout_immediately timed out')
 
     t2 = TaskManager()
     t2.add(receiver())
@@ -1274,11 +1274,11 @@ if __name__ == '__main__':
     t2.add(timeout_immediately())
 
     def parent():
-        print 'child returned: %s' % ((yield child()),)
+        print('child returned: %s' % ((yield child()),))
         try:
             yield child(raise_exc=True)
         except:
-            print 'exception in child:', sys.exc_info()[1]
+            print('exception in child:', sys.exc_info()[1])
 
     def child(raise_exc=False):
         yield
@@ -1294,3 +1294,4 @@ if __name__ == '__main__':
     t.run()
 
     assert not(t.has_runnable() or t.has_io_waits() or t.has_timeouts())
+

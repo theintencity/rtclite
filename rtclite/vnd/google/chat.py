@@ -36,7 +36,7 @@ def recv(h):
         msg = yield h.recv()
         if msg.frm and msg.body:
             # msg.frm.partition('/')[0]
-            print '< %s'%(msg.body.cdata,)
+            print('< %s'%(msg.body.cdata,))
             #if readline:
             #    readline.redisplay()
 
@@ -54,8 +54,8 @@ def main(username, password, targetname):
     user = User(server='gmail.com', username=username, password=password)
     result, error = yield user.login()
     if error:
-        print 'Failed to login as %s@gmail.com, may be due to no access to XMPP.'%(username,)
-        print 'Visit https://www.google.com/settings/security/lesssecureapps to enable access.'
+        print('Failed to login as %s@gmail.com, may be due to no access to XMPP.'%(username,))
+        print('Visit https://www.google.com/settings/security/lesssecureapps to enable access.')
         raise StopIteration()
     
     yield multitask.sleep(1)
@@ -70,7 +70,7 @@ def main(username, password, targetname):
 if __name__ == '__main__':
     if len(sys.argv) != 3:
         if len(sys.argv) > 1 and sys.argv[1] == '--test': sys.exit(0) # no tests to run
-        print 'usage: %s your-gmail-id target-gmail-id'%(sys.argv[0],)
+        print('usage: %s your-gmail-id target-gmail-id'%(sys.argv[0],))
         sys.exit(-1)
     
     logging.basicConfig()
@@ -81,4 +81,5 @@ if __name__ == '__main__':
     multitask.add(main(username, password, targetname))
     try: multitask.run()
     except KeyboardInterrupt: pass
-    except select.error: print 'select error'; pass
+    except select.error: print('select error'); pass
+

@@ -14,15 +14,16 @@ This used the OpenSSL module internally.
 
 import os, struct
 from string import atoi
+from functools import reduce
 try: from OpenSSL.crypto import *
-except: print 'WARNING: cannot import OpenSSL.crypto'; raise
+except: print('WARNING: cannot import OpenSSL.crypto'); raise
 
 #===============================================================================
 # Generic methods such as ASN.1 minimal parsing and utility functions
 #===============================================================================
 
 # following two definitions are reused from dht.py
-bin2int = lambda x: long(''.join('%02x'%(ord(a)) for a in x), 16)
+bin2int = lambda x: int(''.join('%02x'%(ord(a)) for a in x), 16)
 def int2bin(x, signByte=True): # if signByte is True (default), prepend '\x00' if first byte is >= '\x80'
     result = ''
     while x != 0: result, x = struct.pack('>B', x % 256)+result, x / 256
@@ -150,7 +151,7 @@ class PrivateKey(object):
         raw = dump_privatekey(FILETYPE_ASN1, data)
         self._bits = data.bits()
         asn, ignore = ASN1.decode(raw)
-        self.n, self.e, self.d, self.p, self.q, self.dmp1, self.dmq1, self.iqmp = (asn[x].value for x in xrange(1,9))
+        self.n, self.e, self.d, self.p, self.q, self.dmp1, self.dmq1, self.iqmp = (asn[x].value for x in range(1,9))
     
 def generateRSA(bits=1024):
     '''Generate a RSA key pair: Ks, Kp.'''
@@ -180,7 +181,7 @@ def load(file, passphrase=''):
     if file.find('\x00') < 0 and  os.path.isfile(file): file = open(file, 'r').read() # read this as a file
     type = FILETYPE_PEM if file.startswith('-----') else FILETYPE_ASN1
     try: result = PrivateKey(load_privatekey(type, file, passphrase))
-    except Error, e:
+    except Error as e:
         try: error = e[0][0][2]
         except: error = str(e)
         if error == 'field missing':
@@ -191,7 +192,7 @@ def load(file, passphrase=''):
         else:
             if not error and error != 'no start line' and error != 'not enough data': raise ValueError('Cannot read input: %s'%(str(e)))
             try: result = PublicKey(load_certificate(type, file))
-            except Error, e: raise ValueError('Cannot load input: %s'%(str(e)))
+            except Error as e: raise ValueError('Cannot load input: %s'%(str(e)))
     return result
 
 def save(key, asPEM=False):
@@ -211,24 +212,24 @@ def save(key, asPEM=False):
 # following is reused from http://www.amk.ca/python/writing/crypto-curiosa
 def rsa(data, n, e=0x10001, d=None, bits=1024):
     '''Create a generator to perform encryption or decryption operation.
-    >>> print rsa(rsa('kund', n=0x1967cb529, e=0x10001, bits=40).next(), n=0x1967cb529, d=0xac363601, bits=40).next()
+    >>> print(next(rsa(next(rsa('kund', n=0x1967cb529, e=0x10001, bits=40)), n=0x1967cb529, d=0xac363601, bits=40)))
     kund
     '''
     if not d: o, inb = bits/8, bits/8-1   # encryption
     else: e, o, inb = d, bits/8-1, bits/8 # decryption
     while data:
-        if len(data)>inb: raise ValueError, 'length of data is more than modulus bits'
-        result = ''.join(map(lambda i, b=pow(reduce(lambda x,y: (x<<8L)+y, map(ord, data)), e, n):
-                             chr(b>>8*i&255), range(o-1,-1,-1)))
+        if len(data)>inb: raise ValueError('length of data is more than modulus bits')
+        result = ''.join(map(lambda i, b=pow(reduce(lambda x,y: (x<<8)+y, list(map(ord, data))), e, n):
+                             chr(b>>8*i&255), list(range(o-1,-1,-1))))
         data = yield result
 
 def arc4(data, key):
     '''Create a generator for alleged RC4 encryption or decryption.
-    >>> print arc4(data=arc4(data="kundan", key='666f6f').next(), key='666f6f').next()
+    >>> print(next(arc4(data=next(arc4(data="kundan", key='666f6f')), key='666f6f')))
     kundan
     '''
-    t,x,y,j,a=range(256),0,0,0,key
-    k=(map(lambda b:atoi(a[b:b+2],16), range(0,len(a),2))*256)[:256]
+    t,x,y,j,a=list(range(256)),0,0,0,key
+    k=([atoi(a[b:b+2],16) for b in range(0,len(a),2)]*256)[:256]
     for i in t[:]:j=(k[i]+t[i]+j)%256;t[i],t[j]=t[j],t[i]
     while data:
         result = ''
@@ -248,17 +249,17 @@ def sign(Ks, hash):
     '''Sign a hash using the given private key. Throws an exception if size of hash is more than
     the modulus of the private key. It returns the signature.'''
     # TODO: why should I use bits as bits+8? It doesn't work otherwise
-    return rsa(data=str(hash), n=Ks.n, d=Ks.d, bits=Ks._bits+8).next()
+    return next(rsa(data=str(hash), n=Ks.n, d=Ks.d, bits=Ks._bits+8))
 
 def verify(Kp, hash, signature):
     '''Verify that the signature is a valid signature of hash using the private key that was 
     associated with this public key Kp. Returns True on success and False otherwise.
     
     >>> Ks, Kp = generateRSA(); 
-    >>> print verify(Kp, 'somehash', sign(Ks, 'somehash'))
+    >>> print(verify(Kp, 'somehash', sign(Ks, 'somehash')))
     True
     '''
-    _hash = rsa(data=signature, n=Kp.n, e=Kp.e, bits=Kp._bits+8).next()
+    _hash = next(rsa(data=signature, n=Kp.n, e=Kp.e, bits=Kp._bits+8))
     return bin2int(_hash) == bin2int(str(hash)) 
 
 
@@ -296,7 +297,8 @@ VJ9B9MDo5ZLx7h4jyqROEgDjYEwi69I+dVvG3DKD+VBdPw==
 -----END RSA PRIVATE KEY-----
 ''' }
         try: return load_orig(data[filename].strip())
-        except KeyError: raise RuntimeError, 'cannot open file %r'%(filename,)
+        except KeyError: raise RuntimeError('cannot open file %r'%(filename,))
     load_orig, load = load, load_mod
     import doctest
     doctest.testmod()
+

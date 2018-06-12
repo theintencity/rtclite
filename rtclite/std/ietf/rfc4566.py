@@ -10,7 +10,7 @@ class attrs(object):
     '''A generic class that allows uniformly accessing the attribute and items,
     and returns None for invalid attribute instead of throwing an acception.'''
     def __init__(self, **kwargs): 
-        for n,v in kwargs.items(): self[n] = v 
+        for n,v in list(kwargs.items()): self[n] = v 
     # attribute access: use container if not found
     def __getattr__(self, name): return self.__getitem__(name)
     # container access: use key in __dict__
@@ -51,7 +51,7 @@ class SDP(attrs):
                 self.username, self.sessionid, self.version, self.nettype, self.addrtype, self.address = \
                 '-', int(time.time()), int(time.time()), 'IN', 'IP4', (hostname.find('.')>0 and hostname or socket.gethostbyname(hostname))
         def __repr__(self):
-            return ' '.join(map(lambda x: str(x), [self.username, self.sessionid, self.version, self.nettype, self.addrtype, self.address]))
+            return ' '.join([str(x) for x in [self.username, self.sessionid, self.version, self.nettype, self.addrtype, self.address]])
         
     # @implements RFC4566 P14L7-P16L9    
     class connection(attrs):
@@ -93,8 +93,8 @@ class SDP(attrs):
                 self.proto = kwargs.get('proto', 'RTP/AVP')
                 self.fmt   = kwargs.get('fmt', [])
         def __repr__(self):
-            result = self.media + ' ' + str(self.port) + ' ' + self.proto + ' ' + ' '.join(map(lambda x: str(x.pt), self.fmt))
-            for k in filter(lambda x: x in self, 'icbka'): # order is important
+            result = self.media + ' ' + str(self.port) + ' ' + self.proto + ' ' + ' '.join([str(x.pt) for x in self.fmt])
+            for k in [x for x in 'icbka' if x in self]: # order is important
                 if k not in SDP._multiple: # single header
                     result += '\r\n' + k + '=' + str(self[k])
                 else:
@@ -105,8 +105,8 @@ class SDP(attrs):
                     result += '\r\n' + 'a=rtpmap:' + str(f.pt) + ' ' + f.name + '/' + str(f.rate) + (f.params and ('/'+f.params) or '')
             return result
         def dup(self): # use this method instead of SDP.media(str(m)) to duplicate m. Otherwise, fmt will be incomplete
-            result = SDP.media(media=self.media, port=self.port, proto=self.proto, fmt=map(lambda f: attrs(pt=f.pt, name=f.name, rate=f.rate, params=f.params), self.fmt))
-            for k in filter(lambda x: x in self, 'icbka'): 
+            result = SDP.media(media=self.media, port=self.port, proto=self.proto, fmt=[attrs(pt=f.pt, name=f.name, rate=f.rate, params=f.params) for f in self.fmt])
+            for k in [x for x in 'icbka' if x in self]: 
                 result[k] = self[k][:] if isinstance(self[k], list) else self[k]
             return result
     
@@ -132,7 +132,7 @@ class SDP(attrs):
                     pt, rest = v[7:].split(' ', 1)
                     name, sep, rest = rest.partition('/')
                     rate, sep, params = rest.partition('/')
-                    for f in filter(lambda x: str(x.pt) == str(pt), obj.fmt):
+                    for f in [x for x in obj.fmt if str(x.pt) == str(pt)]:
                         f.name = name; f.rate = int(rate); f.params = params or None
                 else:
                     obj[k] = (k in SDP._multiple and ((k in obj) and (obj[k]+[v]) or [v])) or v 
@@ -143,7 +143,7 @@ class SDP(attrs):
     def __repr__(self):
         global lineending
         result = ''
-        for k in filter(lambda x: x in self, 'vosiuepcbtam'): # order is important
+        for k in [x for x in 'vosiuepcbtam' if x in self]: # order is important
             if k not in SDP._multiple: # single header
                 result += k + '=' + str(self[k]) + '\r\n'
             else:
@@ -178,3 +178,4 @@ if __name__ == '__main__':
     import doctest
     doctest.testmod()
     testSDP()
+

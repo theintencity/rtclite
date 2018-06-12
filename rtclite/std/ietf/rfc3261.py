@@ -33,7 +33,7 @@ _exception    = {'call-id':'Call-ID','cseq':'CSeq','www-authenticate':'WWW-Authe
 
 def _canon(s):
     '''Return the canonical form of the header.
-    >>> print _canon('call-Id'), _canon('fRoM'), _canon('refer-to')
+    >>> print(_canon('call-Id'), _canon('fRoM'), _canon('refer-to'))
     Call-ID From Refer-To
     '''
     s = s.lower()
@@ -45,17 +45,17 @@ class Header(object):
     '''A SIP header object with dynamic properties.
     Attributes such as name, and various parameters can be accessed on the object.
 
-    >>> print repr(Header('"Kundan Singh" <sip:kundan@example.net>', 'To'))
+    >>> print(repr(Header('"Kundan Singh" <sip:kundan@example.net>', 'To')))
     To: "Kundan Singh" <sip:kundan@example.net>
-    >>> print repr(Header('"Kundan"<sip:kundan99@example.net>', 'To'))
+    >>> print(repr(Header('"Kundan"<sip:kundan99@example.net>', 'To')))
     To: "Kundan" <sip:kundan99@example.net>
-    >>> print repr(Header('Sanjay <sip:sanjayc77@example.net>', 'fRoM'))
+    >>> print(repr(Header('Sanjay <sip:sanjayc77@example.net>', 'fRoM')))
     From: "Sanjay" <sip:sanjayc77@example.net>
-    >>> print repr(Header('application/sdp', 'conTenT-tyPe'))
+    >>> print(repr(Header('application/sdp', 'conTenT-tyPe')))
     Content-Type: application/sdp
-    >>> print repr(Header('presence; param=value;param2=another', 'Event'))
+    >>> print(repr(Header('presence; param=value;param2=another', 'Event')))
     Event: presence;param=value;param2=another
-    >>> print repr(Header('78  INVITE', 'CSeq'))
+    >>> print(repr(Header('78  INVITE', 'CSeq')))
     CSeq: 78 INVITE
     '''
 
@@ -89,22 +89,22 @@ class Header(object):
 #            for n,v in map(lambda x: x.strip().split('='), rest.split(',') if rest else []):
 #                self.__dict__[n.lower().strip()] = _unquote(v.strip())
         elif name == 'cseq':
-            n, sep, self.method = map(lambda x: x.strip(), value.partition(' '))
+            n, sep, self.method = [x.strip() for x in value.partition(' ')]
             self.number = int(n); value = n + ' ' + self.method
         return value
 
     @staticmethod
     def parseParams(rest, delimiter=';'):
         '''A generator to parse the parameters using the supplied delimitter.
-        >>> print list(Header.parseParams(";param1=value1;param2=value2"))
+        >>> print(list(Header.parseParams(";param1=value1;param2=value2")))
         [('param1', 'value1'), ('param2', 'value2')]
-        >>> print list(Header.parseParams(';param1="value1" ;param2="value2"'))
+        >>> print(list(Header.parseParams(';param1="value1" ;param2="value2"')))
         [('param1', 'value1'), ('param2', 'value2')]
-        >>> print list(Header.parseParams('param1="value1", param2=value2', delimiter=','))
+        >>> print(list(Header.parseParams('param1="value1", param2=value2', delimiter=',')))
         [('param1', 'value1'), ('param2', 'value2')]
-        >>> print list(Header.parseParams('param1="";param2'))
+        >>> print(list(Header.parseParams('param1="";param2')))
         [('param1', ''), ('param2', '')]
-        >>> print list(Header.parseParams('param1="";param2=;'))  # error cases
+        >>> print(list(Header.parseParams('param1="";param2=;')))  # error cases
         [('param1', ''), ('param2', '')]
         '''
         try:
@@ -140,7 +140,7 @@ class Header(object):
         # TODO: use reduce instead of join+map
         name = self.name.lower()
         rest = '' if ((name in _comma) or (name in _unstructured)) \
-                else (';'.join(['%s'%(x,) if not y else ('%s=%s'%(x.lower(), y) if re.match(r'^[a-zA-Z0-9\-_\.=]*$', str(y)) else '%s="%s"'%(x.lower(), y))for x, y in self.__dict__.iteritems() if x.lower() not in ('name','value', '_viauri')]))
+                else (';'.join(['%s'%(x,) if not y else ('%s=%s'%(x.lower(), y) if re.match(r'^[a-zA-Z0-9\-_\.=]*$', str(y)) else '%s="%s"'%(x.lower(), y))for x, y in self.__dict__.items() if x.lower() not in ('name','value', '_viauri')]))
         return str(self.value) + (rest and (';'+rest) or '');
 
     def __repr__(self):
@@ -159,15 +159,15 @@ class Header(object):
     @property
     def viaUri(self):
         '''Read-only URI representing Via header's value.
-        >>> print Header('SIP/2.0/UDP example.net:5090;ttl=1', 'Via').viaUri
+        >>> print(Header('SIP/2.0/UDP example.net:5090;ttl=1', 'Via').viaUri)
         sip:example.net:5090;transport=udp
-        >>> print Header('SIP/2.0/UDP 192.1.2.3;rport=1078;received=76.17.12.18;branch=0', 'Via').viaUri
+        >>> print(Header('SIP/2.0/UDP 192.1.2.3;rport=1078;received=76.17.12.18;branch=0', 'Via').viaUri)
         sip:76.17.12.18:1078;transport=udp
-        >>> print Header('SIP/2.0/UDP 192.1.2.3;maddr=224.0.1.75', 'Via').viaUri
+        >>> print(Header('SIP/2.0/UDP 192.1.2.3;maddr=224.0.1.75', 'Via').viaUri)
         sip:224.0.1.75:5060;transport=udp
         '''
         if not hasattr(self, '_viaUri'):
-            if self.name != 'Via': raise ValueError, 'viaUri available only on Via header'
+            if self.name != 'Via': raise ValueError('viaUri available only on Via header')
             proto, addr = self.value.split(' ')
             type = proto.split('/')[2].lower()  # udp, tcp, tls
             self._viaUri = URI('sip:' + addr + ';transport=' + type)
@@ -185,14 +185,18 @@ class Header(object):
         '''Parse a header line and return (name, [Header, Header, Header]) where name
         represents the header name, and the list has list of Header objects, typically
         one but for comma separated header line there can be multiple.
-        >>> print Header.createHeaders('Event: presence, reg')
+        >>> print(Header.createHeaders('Event: presence, reg'))
         ('Event', [Event: presence, Event: reg])
-        >>> print Header.createHeaders('Contact: <sip:user@1.2.3.4:5060;line=vvl1wrhk>;reg-id=1;q=1.0;+sip.instance="<urn:uuid:bff62662-19cc-4781-8830-0004132E682E>";audio;mobility="fixed";duplex="full";description="snom370";actor="principal";events="dialog";methods="INVITE,ACK,CANCEL,BYE,REFER,OPTIONS,NOTIFY,SUBSCRIBE,PRACK,MESSAGE,INFO"')
+        >>> print(Header.createHeaders('Contact: <sip:user@1.2.3.4:5060;line=vvl1wrhk>;reg-id=1;q=1.0;+sip.instance="<urn:uuid:bff62662-19cc-4781-8830-0004132E682E>";audio;mobility="fixed";duplex="full";description="snom370";actor="principal";events="dialog";methods="INVITE,ACK,CANCEL,BYE,REFER,OPTIONS,NOTIFY,SUBSCRIBE,PRACK,MESSAGE,INFO"'))
         ('Contact', [Contact: <sip:user@1.2.3.4:5060;line=vvl1wrhk>;reg-id=1;mobility=fixed;duplex=full;description=snom370;actor=principal;q=1.0;methods="INVITE,ACK,CANCEL,BYE,REFER,OPTIONS,NOTIFY,SUBSCRIBE,PRACK,MESSAGE,INFO";audio;events=dialog;+sip.instance="<urn:uuid:bff62662-19cc-4781-8830-0004132E682E>"])
         '''
-        name, value = map(str.strip, value.split(':', 1))
+        name, value = list(map(str.strip, value.split(':', 1)))
         value = '"'.join([(x if i % 2 == 0 else re.sub(r',', r'%2C', x)) for i, x in enumerate(value.split('"'))])
-        return (_canon(name),  map(lambda x: Header(re.sub(r'%2C', r',', x), name), value.split(',') if name.lower() not in _comma else [value]))
+        if name.lower() not in _comma:
+            arr = [Header(re.sub(r'%2C', r',', x), name) for x in value.split(',')]
+        else:
+            arr = [value]
+        return (_canon(name), arr)
 
 
 
@@ -253,7 +257,7 @@ class Message(object):
         else:
             firstheaders, body = value, '' # assume no body
         try: firstline, headers = firstheaders.split('\n', 1)
-        except: raise ValueError, 'No first line found'
+        except: raise ValueError('No first line found')
         if firstline[-1] == '\r': firstline = firstline[:-1]
         a, b, c = firstline.split(' ', 2)
         try:    # try as response
@@ -282,9 +286,9 @@ class Message(object):
                 continue
         bodyLen = int(self['Content-Length'].value) if 'Content-Length' in self else 0
         if body: self.body = body
-        if self.body != None and bodyLen != len(body): raise ValueError, 'Invalid content-length %d!=%d'%(bodyLen, len(body))
+        if self.body != None and bodyLen != len(body): raise ValueError('Invalid content-length %d!=%d'%(bodyLen, len(body)))
         for h in ['To','From','CSeq','Call-ID']:
-            if h not in self: raise ValueError, 'Mandatory header %s missing'%(h)
+            if h not in self: raise ValueError('Mandatory header %s missing'%(h))
 
     def __repr__(self):
         '''Return the formatted message string.'''
@@ -304,8 +308,12 @@ class Message(object):
     def __iter__(self):
         '''Return iterator to iterate over all Header objects.'''
         h = list()
-        for n in filter(lambda x: not x.startswith('_') and x not in Message._keywords, self.__dict__):
-            h += filter(lambda x: isinstance(x, Header), self[n] if isinstance(self[n],list) else [self[n]])
+        for n in [x for x in self.__dict__ if not x.startswith('_') and x not in Message._keywords]:
+            if isinstance(x, Header):
+                arr = [self[n]]
+            elif isinstance(self[n],list):
+                arr = self[n]
+            h += [x for x in arr]
         return iter(h)
 
     def first(self, name):
@@ -315,10 +323,14 @@ class Message(object):
 
     def all(self, *args):
         '''Return list of the Header object (or empty list) for all the header names in args.'''
-        args = map(lambda x: x.lower(), args)
+        args = [x.lower() for x in args]
         h = list()
-        for n in filter(lambda x: x in args and not x.startswith('_') and x not in Message._keywords, self.__dict__):
-            h += filter(lambda x: isinstance(x, Header), self[n] if isinstance(self[n],list) else [self[n]])
+        for n in [x for x in self.__dict__ if x in args and not x.startswith('_') and x not in Message._keywords]:
+            if isinstance(x, Header):
+                arr = [self[n]]
+            elif isinstance(self[n],list):
+                arr = self[n]
+            h += [x for x in arr]
         return h
 
     def insert(self, header, append=False):
@@ -384,8 +396,8 @@ class Message(object):
 
     # define is1xx, is2xx, ... is6xx and isfinal
     for x in range(1,7):
-        exec 'def is%dxx(self): return self.response and (self.response / 100 == %d)'%(x,x)
-        exec 'is%dxx = property(is%dxx)'%(x,x)
+        exec('def is%dxx(self): return self.response and (self.response / 100 == %d)'%(x,x))
+        exec('is%dxx = property(is%dxx)'%(x,x))
     @property
     def isfinal(self): return self.response and (self.response >= 200)
 
@@ -462,14 +474,14 @@ class Stack(object):
         # end contribution
 
     def createVia(self, secure=False):
-        if not self.transport: raise ValueError, 'No transport in stack'
-        if secure and not self.transport.secure: raise ValueError, 'Cannot find a secure transport'
+        if not self.transport: raise ValueError('No transport in stack')
+        if secure and not self.transport.secure: raise ValueError('Cannot find a secure transport')
         return Header('SIP/2.0/' + self.transport.type.upper() + ' ' + self.transport.host + ':' + str(self.transport.port) + ';rport', 'Via')
 
     def isLocal(self, uri):
         '''Check whether the given uri represents local address (host:port) of this stack?'''
         return (self.transport.host == uri.host or uri.host in ('localhost', '127.0.0.1')) and (self.transport.port == uri.port or not uri.port and self.transport.port == 5060) # TODO: what about 5061 for sips
-    
+
     def createRecordRoute(self):
         rr = Address(str(self.uri))
         rr.uri.param['lr'] = None
@@ -477,13 +489,13 @@ class Stack(object):
         rr.mustQuote = True
         # TODO: take care of sips URI
         return Header(str(rr), 'Record-Route')
-    
+
     def send(self, data, dest=None, transport=None):
         '''Send a data (Message) to given dest (URI or hostPort), or using the Via header of
         response message if dest is missing.'''
         # TODO: why do we need transport argument?
         if dest and isinstance(dest, URI):
-            if not dest.host: raise ValueError, 'No host in destination uri'
+            if not dest.host: raise ValueError('No host in destination uri')
             dest = (dest.host, dest.port or self.transport.type == 'tls' and self.transport.secure and 5061 or 5060)
         if isinstance(data, Message):
             if data.method:      # request
@@ -502,7 +514,7 @@ class Stack(object):
             m._parse(data)
             uri = URI((self.transport.secure and 'sips' or 'sip') + ':' + str(src[0]) + ':' + str(src[1]))
             if m.method: # request: update Via and call receivedRequest
-                if m.Via == None: raise ValueError, 'No Via header in request'
+                if m.Via == None: raise ValueError('No Via header in request')
                 via = m.first('Via')
                 if via.viaUri.host != src[0] or via.viaUri.port != src[1]:
                     via['received'], via.viaUri.host = src[0], src[0]
@@ -519,8 +531,8 @@ class Stack(object):
                 if self.fix_nat and m['CSeq'] and m.CSeq.method in ('INVITE', 'MESSAGE'):
                     self._fixNatContact(m, src)
                 self._receivedResponse(m, uri)
-            else: raise ValueError, 'Received invalid message'
-        except ValueError, E: # TODO: send 400 response to non-ACK request
+            else: raise ValueError('Received invalid message')
+        except ValueError as E: # TODO: send 400 response to non-ACK request
             logger.exception('Error in received message:')
             if m.method and m.uri and m.protocol and m.method != 'ACK': # this was a non-ACK request
                 try: self.send(Message.createResponse(400, str(E), None, None, m))
@@ -618,7 +630,7 @@ class Stack(object):
 
     def _receivedResponse(self, r, uri):
         '''Received a SIP response r (Message) from the uri (URI).'''
-        if not r.Via: raise ValueError, 'No Via header in received response'
+        if not r.Via: raise ValueError('No Via header in received response')
         try: branch = r.first('Via').branch
         except AttributeError: branch = ''
         method = r.CSeq.method
@@ -627,7 +639,7 @@ class Stack(object):
             if method == 'INVITE' and r.is2xx: # success of INVITE
                 d = self.findDialog(r)
                 if not d: # no dialog or transaction for success response of INVITE.
-                    raise ValueError, 'No transaction or dialog for 2xx of INVITE'
+                    raise ValueError('No transaction or dialog for 2xx of INVITE')
                 else:
                     d.receivedResponse(None, r)
             else:
@@ -637,7 +649,7 @@ class Stack(object):
                     m = Message.createRequest('ACK', str(r.To.value.uri))
                     m['Call-ID'], m.From, m.To, m.Via, m.CSeq = r['Call-ID'], r.From, r.To, r.first('Via'), Header(str(r.CSeq.number) + ' ACK', 'CSeq')
                     self.send(m, uri.hostPort)
-                raise ValueError, 'No transaction for response'
+                raise ValueError('No transaction for response')
         else:
             t.receivedResponse(r)
 
@@ -653,7 +665,7 @@ class Stack(object):
 
     def createBranch(self, ua, request, target):
         return Transaction.createClient(self, ua, request, self.transport, target.hostPort)
-    
+
     def findDialog(self, arg):
         '''Find an existing dialog for given id (str) or received message (Message).'''
         return self.dialogs.get(isinstance(arg, Message) and Dialog.extractId(arg) or str(arg), None)
@@ -664,7 +676,7 @@ class Stack(object):
 
     def findOtherTransaction(self, r, orig):
         '''Find another transaction other than orig (Transaction) for this request r (Message).'''
-        for t in self.transactions.values():
+        for t in list(self.transactions.values()):
             if t != orig and Transaction.equals(t, r, orig): return t
         return None
 
@@ -705,7 +717,7 @@ class Transaction(object):
     @property
     def headers(self):
         '''Read-only list of transaction Header objects (To, From, CSeq, Call-ID)'''
-        return map(lambda x: self.request[x], ['To', 'From', 'CSeq', 'Call-ID'])
+        return [self.request[x] for x in ['To', 'From', 'CSeq', 'Call-ID']]
 
     @staticmethod
     def createBranch(request, server):
@@ -788,13 +800,13 @@ class Transaction(object):
 
     def stopTimers(self):
         '''Stop all the named timers'''
-        for v in self.timers.values(): v.stop()
+        for v in list(self.timers.values()): v.stop()
         self.timers.clear()
 
     def timedout(self, timer):
         '''Callback invoked by Timer returned by stack.createTimer().'''
         if timer.running: timer.stop()
-        found = filter(lambda x: self.timers[x] == timer, self.timers.keys())
+        found = [x for x in list(self.timers.keys()) if self.timers[x] == timer]
         if len(found):
             for f in found: del self.timers[f]
             self.timeout(found[0], timer.delay * 1000)
@@ -808,7 +820,7 @@ class Timer(object):
     def B(self): return 64*self.T1
     def D(self): return max(64*self.T1, 32000)
     def I(self): return self.T4
-    A, B, D, E, F, G, H, I, J, K = map(lambda x: property(x), [A, B, D, A, B, A, B, I, B, I])
+    A, B, D, E, F, G, H, I, J, K = [property(x) for x in [A, B, D, A, B, A, B, I, B, I]]
     # TODO: why no timer C?
 
 # @implements RFC3261 P130L35-P134L6
@@ -949,7 +961,7 @@ class InviteClientTransaction(Transaction):
 
     # @implements RFC3261 P129L21-P130L12
     def createAck(self, response):
-        if not self.request: raise ValueError, 'No transaction request found'
+        if not self.request: raise ValueError('No transaction request found')
         m = Message.createRequest('ACK', str(self.request.uri))
         m['Call-ID'] = self.request['Call-ID']
         m.From   = self.request.From
@@ -1071,7 +1083,7 @@ class UserAgent(object):
     def createRequest(self, method, content=None, contentType=None):
         '''Create new UAC request.'''
         self.server = False
-        if not self.remoteParty: raise ValueError, 'No remoteParty for UAC'
+        if not self.remoteParty: raise ValueError('No remoteParty for UAC')
         if not self.localParty: self.localParty = Address('"Anonymous" <sip:anonymous@anonymous.invalid>')
         uri = URI(str(self.remoteTarget if self.remoteTarget else self.remoteParty.uri)) # TODO: use original URI for ACK
         if method == 'REGISTER': uri.user = None # no uri.user in REGISTER
@@ -1101,7 +1113,7 @@ class UserAgent(object):
         headers = [To, From, CSeq, CallId, MaxForwards, Via, Contact]
 
         if self.routeSet:
-            for route in map(lambda x: Header(str(x), 'Route'), self.routeSet):
+            for route in [Header(str(x), 'Route') for x in self.routeSet]:
                 route.value.uri.secure = self.secure
                 #print 'adding route header', route
                 headers.append(route)
@@ -1123,7 +1135,7 @@ class UserAgent(object):
         '''Send a UAC request Message.'''
         if not self.request and request.method == 'REGISTER':
             if not self.transaction and self.transaction.state != 'completed' and self.transaction.state != 'terminated':
-                raise ValueError, 'Cannot re-REGISTER since pending registration'
+                raise ValueError('Cannot re-REGISTER since pending registration')
 
         self.request = request # store for future
 
@@ -1170,7 +1182,7 @@ class UserAgent(object):
     def retryNextCandidate(self):
         '''Retry next DNS resolved address.'''
         if not self.remoteCandidates or len(self.remoteCandidates) == 0:
-            raise ValueError, 'No more DNS resolved address to try'
+            raise ValueError('No more DNS resolved address to try')
         target = URI(self.remoteCandiates.pop(0))
         self.request.first('Via').branch += 'A' # so that we create a different new transaction
         self.transaction = Transaction.createClient(self.stack, self, self.request, self.stack.transport, target.hostPort)
@@ -1188,7 +1200,7 @@ class UserAgent(object):
             logger.debug('Invalid transaction received %r!=%r', transaction, self.transaction)
             return
         if len(response.all('Via')) > 1:
-            raise ValueError, 'More than one Via header in response'
+            raise ValueError('More than one Via header in response')
         if response.is1xx:
             if self.cancelRequest:
                 cancel = Transaction.createClient(transaction.stack, self, self.cancelRequest, transaction.transport, transaction.remote)
@@ -1212,7 +1224,7 @@ class UserAgent(object):
     def receivedRequest(self, transaction, request):
         '''New incoming request in this transaction.'''
         if transaction and self.transaction and transaction != self.transaction and request.method != 'CANCEL':
-            raise ValueError, 'Invalid transaction for received request'
+            raise ValueError('Invalid transaction for received request')
         self.server = True # this becomes a UAS
         #if request.method == 'REGISTER':
         #    response = transaction.createResponse(405, 'Method not allowed')
@@ -1251,7 +1263,7 @@ class UserAgent(object):
     # @implements RFC3261 P49L30-P50L27
     def sendResponse(self, response, responsetext=None, content=None, contentType=None, createDialog=True):
         if not self.request:
-            raise ValueError, 'Invalid request in sending a response'
+            raise ValueError('Invalid request in sending a response')
         if isinstance(response, int):
             response = self.createResponse(response, responsetext, content, contentType)
         if createDialog and self.canCreateDialog(self.request, response):
@@ -1274,7 +1286,7 @@ class UserAgent(object):
 
     def createResponse(self, response, responsetext, content=None, contentType=None):
         if not self.request:
-            raise ValueError, 'Invalid request in creating a response'
+            raise ValueError('Invalid request in creating a response')
         response = Message.createResponse(response, responsetext, None, content, self.request)
         if contentType: response['Content-Type'] = Header(contentType, 'Content-Type')
         if response.response != 100 and 'tag' not in response.To: response.To['tag'] = self.localTag
@@ -1284,7 +1296,7 @@ class UserAgent(object):
     def sendCancel(self):
         '''Cancel a request.'''
         if not self.transaction:
-            raise ValueError, 'No transaction for sending CANCEL'
+            raise ValueError('No transaction for sending CANCEL')
 
         self.cancelRequest = self.transaction.createCancel()
         if self.transaction.state != 'trying' and self.transaction.state != 'calling':
@@ -1431,7 +1443,7 @@ class Dialog(UserAgent):
 
     def createResponse(self, response, responsetext, content=None, contentType=None):
         '''Create a new SIP response in this dialog'''
-        if len(self.servers) == 0: raise ValueError, 'No server transaction to create response'
+        if len(self.servers) == 0: raise ValueError('No server transaction to create response')
         request = self.servers[0].request
         response = Message.createResponse(response, responsetext, None, content, request)
         if contentType: response['Content-Type'] = Header(contentType, 'Content-Type')
@@ -1441,7 +1453,7 @@ class Dialog(UserAgent):
 
     def sendResponse(self, response, responsetext=None, content=None, contentType=None, createDialog=True):
         '''Send a new response in this dialog for first pending server transaction.'''
-        if len(self.servers) == 0: raise ValueError, 'No server transaction to send response'
+        if len(self.servers) == 0: raise ValueError('No server transaction to send response')
         self.transaction, self.request = self.servers[0], self.servers[0].request
         UserAgent.sendResponse(self, response, responsetext, content, contentType, False)
         code = response if isinstance(response, int) else response.response
@@ -1469,7 +1481,7 @@ class Dialog(UserAgent):
             self.remoteTarget = request.first('Contact').value.uri.dup()
 
         if request.method == 'ACK' or request.method == 'CANCEL':
-            self.servers = filter(lambda x: x != transaction, self.servers) # remove from pending
+            self.servers = [x for x in self.servers if x != transaction] # remove from pending
             if request.method == 'ACK':
                 self.stack.receivedRequest(self, request)
             else:
@@ -1485,7 +1497,7 @@ class Dialog(UserAgent):
         if response.is2xx and response.Contact and transaction and transaction.request.method == 'INVITE':
             self.remoteTarget = response.first('Contact').value.uri.dup()
         if not response.is1xx: # final response
-            self.clients = filter(lambda x: x != transaction, self.clients) # remove from pending
+            self.clients = [x for x in self.clients if x != transaction] # remove from pending
 
         if response.response == 408 or response.response == 481: # remote doesn't recognize the dialog
             self.close()
@@ -1518,7 +1530,7 @@ class Proxy(UserAgent):
     def receivedRequest(self, transaction, request):
         '''New incoming request. Transaction may be empty at this point.'''
         if transaction and self.transaction and transaction != self.transaction and request.method != 'CANCEL':
-            raise ValueError, 'Invalid transaction for received request'
+            raise ValueError('Invalid transaction for received request')
         self.server = True # this becomes a UAS
         # 16.3 request validation
         if request.uri.scheme not in ['sip', 'sips']:
@@ -1562,7 +1574,7 @@ class Proxy(UserAgent):
             request.had_lr = True               # mark it so that a proxy can decide whether to open relay or not
 
         self.stack.receivedRequest(self, request)
-    
+
     def isLocal(self, uri):
         return self.stack.isLocal(uri)
 
@@ -1637,11 +1649,11 @@ class Proxy(UserAgent):
             self.branches.append(branch)
         else: # directly send ACK on transport layer
             self.stack.send(request, target)
-    
+
     def retryNextCandidate(self, branch):
         '''Retry next DNS resolved address.'''
         if not branch.remoteCandidates or len(branch.remoteCandidates) == 0:
-            raise ValueError, 'No more DNS resolved address to try'
+            raise ValueError('No more DNS resolved address to try')
         target = URI(branch.remoteCandiates.pop(0))
         branch.request.first('Via').branch += 'A' # so that we create a different new transaction
         branch.transaction = self.stack.createBranch(self, branch.request, target)
@@ -1670,8 +1682,8 @@ class Proxy(UserAgent):
                 self.sendResponse(response)
 
     def sendResponseIfPossible(self):
-        branches = filter(lambda x: x.response and x.response.isfinal, self.branches)
-        branches2xx = filter(lambda x: x.response.is2xx, branches)
+        branches = [x for x in self.branches if x.response and x.response.isfinal]
+        branches2xx = [x for x in branches if x.response.is2xx]
         logger.debug('received %d responses out of %d', len(branches), len(self.branches))
         response = None
         if branches2xx: response = branches[0].response
@@ -1724,3 +1736,4 @@ class Proxy(UserAgent):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

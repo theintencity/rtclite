@@ -122,7 +122,7 @@ class AbstractAgent(object):
                 if conn:
                     self.conn[remote] = conn
                     multitask.add(tcpreceiver(conn, remote))
-            else: raise ValueError, 'invalid socket type'
+            else: raise ValueError('invalid socket type')
     
     # following callbacks are invoked by the SIP stack
     def send(self, data, remote, stack):
@@ -176,7 +176,7 @@ class AbstractAgent(object):
             else:
                 response = ua.createResponse(200, 'OK'); 
                 locations = yield self.locate(str(request.To.value.uri))
-                for h in map(lambda x: Header(str(x), 'Contact'), locations): 
+                for h in [Header(str(x), 'Contact') for x in locations]: 
                     response.insert(h, append=True)
                 response.Expires = request.Expires if request.Expires else Header('3600', 'Expires')
                 ua.sendResponse(response)
@@ -219,7 +219,7 @@ class AbstractAgent(object):
     def authorize(self, request, realm='localhost'):
         '''Server side of authentication. Returns 200 on success, 401 on failure, 0 if missing or invalid
         nonce, and 404 if no password/user information available.'''
-        auths = filter(lambda x: x['realm']==realm, request.all('Authorization', 'Proxy-Authorization')) # search all our authenticate headers
+        auths = [x for x in request.all('Authorization', 'Proxy-Authorization') if x['realm']==realm] # search all our authenticate headers
         if not auths: return 0 # missing authenticate header
         # TODO: check for valid nonce. for now just assume all nonce to be valid.
         uri = request.From.value.uri
@@ -237,9 +237,9 @@ class AbstractAgent(object):
             now = time.time()
             for c in msg.all('Contact'): # for all contacts in the new msg
                 e = now + (expires if 'expires' not in c else int(c.expires)) # expiration for this contact.
-                existing[:] = filter(lambda x: x[0].value.uri!=c.value.uri, existing) # remove matching contacts
+                existing[:] = [x for x in existing if x[0].value.uri!=c.value.uri] # remove matching contacts
                 existing.insert(0, (c, e)) # insert the new contact in begining
-            existing[:] = filter(lambda x: x[1]>now, existing) # filter out expired contacts
+            existing[:] = [x for x in existing if x[1]>now] # filter out expired contacts
             if not existing: # no more contacts
                 del self.location[uri] # remove from the table as well
         logger.debug('save %r returning True', self.location)
@@ -251,9 +251,9 @@ class AbstractAgent(object):
         logger.debug('locate %r %r', uri, self.location)
         existing = self.location.get(str(uri), [])
         now = time.time()
-        existing[:] = filter(lambda x: x[1]>now, existing) # remove expired headers
+        existing[:] = [x for x in existing if x[1]>now] # remove expired headers
         for c in existing: c[0]['expires'] = str(int(c[1]-now)) # update the expires header with relative seconds
-        result = map(lambda x: x[0], existing) # return the contact headers
+        result = [x[0] for x in existing] # return the contact headers
         yield # for some reason this is required for multitask.add() to work
         raise StopIteration(result)
     
@@ -357,3 +357,4 @@ if __name__ == '__main__':
     try: multitask.run()
     except KeyboardInterrupt: pass
     agent.stop()
+

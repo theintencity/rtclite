@@ -98,12 +98,12 @@ class Attribute(object):
             ignore, family, port = struct.unpack('!BBH', self.value[:4])
             family = (family == 0x01) and socket.AF_INET or (family == 0x02) and socket.AF_INET6 or socket.AF_UNSPEC
             if family == socket.AF_INET: value = struct.pack('!l', (struct.unpack('!l', self.value[4:8])[0] ^ Message.MAGIC))
-            else: raise ValueError, 'XOR-ADDRESS not implemented for IPv6'
+            else: raise ValueError('XOR-ADDRESS not implemented for IPv6')
             return (family, _addr2str(value, socket.AF_INET), (port ^ ((Message.MAGIC & 0xffff0000) >> 16)) & 0x00ffff)
         def fset(self, value):
             family, address, port = value
             address = _str2addr(address, family)
-            if family != socket.AF_INET: raise ValueError, 'XOR-ADDRESS not implemented for IPv6'
+            if family != socket.AF_INET: raise ValueError('XOR-ADDRESS not implemented for IPv6')
             family = (family == socket.AF_INET) and 0x01 or (family == socket.AF_INET6) and 0x02 or 0x00
             self.value = struct.pack('!BBHI', 0, family, port ^ ((Message.MAGIC & 0xffff0000) >> 16), struct.unpack('!I', address)[0] ^ Message.MAGIC)
         return locals()
@@ -136,7 +136,7 @@ class Message(object):
     '''A STUN message definition. The properties method, type and tid are defined in the spec.
     The attrs property is a list of STUN attributes in this Message object.'''
     
-    BINDING, ignore, ALLOCATE, SEND, DATA, SET_ACTIVE_DESTINATION = range(1,7) # method: 1,3,4,5,6 
+    BINDING, ignore, ALLOCATE, SEND, DATA, SET_ACTIVE_DESTINATION = list(range(1,7)) # method: 1,3,4,5,6 
     REQUEST, INDICATION, RESPONSE, ERROR = tuple(range(0, 4)) # type
     MAGIC = 0x2112A442 # magic cookie
     
@@ -148,13 +148,13 @@ class Message(object):
         if value:
             type, length, magic, self.tid = struct.unpack('!HHL12s', value[:20])
             if (type & 0xC000) != 0:
-                raise ValueError, 'incorrect message type: %x'%type
+                raise ValueError('incorrect message type: %x'%type)
             if magic != Message.MAGIC:
-                raise ValueError, 'incorrect magic cookie: %x'%magic
+                raise ValueError('incorrect magic cookie: %x'%magic)
             if length != (len(value)-20):
-                raise ValueError, 'incorrect length: %d != %d'%(length, len(value)-20)
+                raise ValueError('incorrect length: %d != %d'%(length, len(value)-20))
             if (length & 0x0003) != 0:
-                raise ValueError, 'incorrect length %d, must be multiple of four'%length
+                raise ValueError('incorrect length %d, must be multiple of four'%length)
             
             self.method = (type & 0x000F) | ((type & 0x00E0) >> 1) | ((type & 0x3E00) >> 2)
             self.type = ((type & 0x0100) >> 7) | ((type & 0x0010) >> 4)
@@ -252,7 +252,7 @@ def request(sock, server=None, **kwargs):
     m.attrs = kwargs.get('attrs', [])
     mstr = str(m) # formatted message bytes to send
     
-    if len(mstr) >= maxsize: raise ValueError, 'Cannot send packet of length>%d'%(maxsize)
+    if len(mstr) >= maxsize: raise ValueError('Cannot send packet of length>%d'%(maxsize))
     
     if sock.type == socket.SOCK_STREAM:
         remote = None
@@ -282,9 +282,9 @@ def request(sock, server=None, **kwargs):
                 logger.debug('request() received data')
                 type, length, magic = struct.unpack('!HHL', data[:8])
                 if type & 0xC000 != 0 or magic != Message.MAGIC:
-                    raise ValueError, 'invalid STUN response from server type=0x%x, magic=0x%x'%(type, magic)
+                    raise ValueError('invalid STUN response from server type=0x%x, magic=0x%x'%(type, magic))
                 if length > (maxsize-8):
-                    raise ValueError, 'very large response length[%d]>%d'%(length+8, maxsize)
+                    raise ValueError('very large response length[%d]>%d'%(length+8, maxsize))
             else: # receive a UDP datagram
                 data, remote = (yield multitask.recvfrom(sock, maxsize, timeout=rto))
                 
@@ -298,7 +298,7 @@ def request(sock, server=None, **kwargs):
                         handler(sock, remote, data) # allow app to demultiplex
                         continue # retry next
                     else:
-                        raise ValueError, 'Invalid response from server'
+                        raise ValueError('Invalid response from server')
                     
                 if response.tid != m.tid: 
                     logger.debug('The tid does not match. ignoring')
@@ -308,7 +308,7 @@ def request(sock, server=None, **kwargs):
                 external = None
                 for attr in response.attrs:
                     if not attr.optional and attr.type not in Attribute.knownTypes:
-                        raise ValueError, 'Attribute 0x%04x not understood in response'%attr.type
+                        raise ValueError('Attribute 0x%04x not understood in response'%attr.type)
                 if response.type == Message.RESPONSE and response.method == Message.BINDING: # success response
                     for attr in response.attrs:
                         if attr.type == Attribute.XOR_MAPPED_ADDRESS:
@@ -321,7 +321,7 @@ def request(sock, server=None, **kwargs):
                         if attrs.type == Attribute.ERROR_CODE:
                             error = attrs.error  # (code, reason)
                             break
-                    raise ValueError, 'Request failed with error %r'%error
+                    raise ValueError('Request failed with error %r'%error)
                 if external:
                     external = external[1:] # ignore the address family
                     raise StopIteration(response, external) # result to the caller
@@ -536,7 +536,7 @@ def server(sock1, **kwargs):
         fivetuple = (sock.type, getlocaladdr(sock), remote)
         try:
             if fivetuple not in binding: # not found
-                raise ValueError, 'no turn binding found'
+                raise ValueError('no turn binding found')
             newsock = binding[fivetuple]
             destaddr = Attribute.DESTINATION_ADDRESS in m  and m[Attribute.DESTINATION_ADDRESS].address[1:] or None
             data     = Attribute.DATA in m and m[Attribute.DATA] or None
@@ -575,7 +575,7 @@ def server(sock1, **kwargs):
             if func:
                 yield func(sock, m, remote)
             else:
-                raise ValueError, 'unhandled request or message'
+                raise ValueError('unhandled request or message')
         except StopIteration:
             logger.debug('datahandler: stop iteration')
             raise
@@ -644,7 +644,7 @@ def _testRequest():
         local = getlocaladdr(sock)
         response, external = yield request(sock, ('sip.iptel.org', defaultPort))
         assert external[0] == '76.102.244.145'
-    except (ValueError, multitask.Timeout), E:
+    except (ValueError, multitask.Timeout) as E:
         logger.exception('exception - ValueError or Timeout')
     except:
         logger.exception('exception')
@@ -660,14 +660,14 @@ def _testTcpRequest():
         sock2.bind(('0.0.0.0', 0))
         yield multitask.sleep(2) # wait for server to be started.
         response, external = (yield request(sock2, sockaddr))
-        print 'external=', external
+        print('external=', external)
         sock1.close()
         yield multitask.sleep(6)
-        print '_testTcpRequest() exiting'
-    except (ValueError, multitask.Timeout), E:
-        print 'exception - ValueError or Timeout', E
+        print('_testTcpRequest() exiting')
+    except (ValueError, multitask.Timeout) as E:
+        print('exception - ValueError or Timeout', E)
     except:
-        print 'exception', sys.exc_info()
+        print('exception', sys.exc_info())
 
 def _testRelay():
     try:
@@ -680,12 +680,12 @@ def _testRelay():
         sock2.bind(('0.0.0.0', 0))
         yield multitask.sleep(2)
         response, mapped = request(sock2, sockaddr, method=Message.ALLOCATE)
-        print 'mapped=', mapped
+        print('mapped=', mapped)
         sock1.close()
         sock2.close()
         yield multitask.sleep(6)
     except:
-        print 'exception', sys.exc_info(), traceback.print_exc(file=sys.stdout)    
+        print('exception', sys.exc_info(), traceback.print_exc(file=sys.stdout))    
 
 if __name__ == "__main__":
     import traceback
@@ -701,3 +701,4 @@ if __name__ == "__main__":
     multitask.run()
     
     
+

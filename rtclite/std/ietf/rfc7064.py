@@ -19,11 +19,11 @@ def parts(uri):
     '''Return STUN URI specific components in a tuple, (host, port, transport, secure).
     Here, secure is boolean, host is str and port is int.
     
-    >>> print parts(URI('stun:example.org'))
+    >>> print(parts(URI('stun:example.org')))
     ('example.org', 3478, False)
-    >>> print parts(URI('stuns:example.org'))
+    >>> print(parts(URI('stuns:example.org')))
     ('example.org', 5349, True)
-    >>> print parts(URI('stun:example.org:8000'))
+    >>> print(parts(URI('stun:example.org:8000')))
     ('example.org', 8000, False)
     '''
     if not uri or uri.scheme not in ('stun', 'stuns'): raise ValueError('not a stun uri')
@@ -34,3 +34,4 @@ def parts(uri):
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
+

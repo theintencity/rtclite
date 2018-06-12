@@ -21,7 +21,7 @@ Known issues: this tunnel software is in alpha with known issues:
 1. Disconnection of publisher when player disconencts.
 '''
 
-import random, socket, traceback, SocketServer, logging
+import random, socket, traceback, socketserver, logging
 
 logger = logging.getLogger('rtmpt')
 
@@ -62,10 +62,10 @@ class Session(object):
             response = '' # no need to respond with data in this case
         return response
         
-class tunnel(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
+class tunnel(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True 
 
-class handler(SocketServer.StreamRequestHandler):
+class handler(socketserver.StreamRequestHandler):
     intervals = ('\x01', '\x03', '\x05', '\x09', '\x11', '\x21')
     
     def handle(self):
@@ -76,19 +76,19 @@ class handler(SocketServer.StreamRequestHandler):
                 firstline = body = response = None
                 headers = {}
                 firstline = self.readline()
-                if firstline is None: raise ValueError, 'connection closed in reading first line'
+                if firstline is None: raise ValueError('connection closed in reading first line')
                 logger.debug('%s', firstline)
                 method, path, protocol = firstline.split(' ')
-                if method != 'POST': raise ValueError, 'invalid method ' + method
+                if method != 'POST': raise ValueError('invalid method ' + method)
                 while True:
                     line = self.readline()
-                    if line is None: raise ValueError, 'connection closed in reading headers'
+                    if line is None: raise ValueError('connection closed in reading headers')
                     logger.debug('%s', line)
                     if not line: break
                     name, value = line.split(':', 1)
                     headers[name.lower().strip()] = value.strip()
                 ctype, clen, conn = [headers.get(name.lower(), None) for name in ('content-type', 'content-length', 'connection')]
-                if ctype != 'application/x-fcs': raise ValueError, 'invalid content-type ' + ctype
+                if ctype != 'application/x-fcs': raise ValueError('invalid content-type ' + ctype)
                 if clen: clen = int(clen)
                 if clen > 0: body = self.read(clen)
                 if path == '/fcs/ident2':
@@ -130,7 +130,7 @@ class handler(SocketServer.StreamRequestHandler):
                             session.close()
                             self.send_response('\x00')
                     else:
-                        raise ValueError, 'invalid path ' + path
+                        raise ValueError('invalid path ' + path)
                 if conn == 'close':
                     self.wfile.close()
                     break
@@ -186,3 +186,4 @@ if __name__ == '__main__':
     logger.setLevel(logging.DEBUG if options.verbose else logging.INFO)
     listen, target = [(x.partition(':')[0], int(x.partition(':')[2])) for x in (options.listen, options.target)]
     run(server_address=listen, target_address=target)
+

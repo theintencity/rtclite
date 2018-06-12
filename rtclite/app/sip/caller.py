@@ -129,13 +129,13 @@ and send it along with your bug report to the author or support mailing list.
 '''
 
 try: import gevent
-except ImportError: print 'Please install gevent and its dependencies and include them in your PYTHONPATH'; raise
+except ImportError: print('Please install gevent and its dependencies and include them in your PYTHONPATH'); raise
 from gevent import monkey, Greenlet, GreenletExit
 monkey.patch_socket()
 
 from gevent.queue import Queue 
 import os, sys, re, traceback, socket, random, logging, time, threading
-from Queue import Queue as thread_Queue
+from queue import Queue as thread_Queue
 
 from .client import MediaSession
 from ...std.ietf import rfc3261, rfc2396, rfc3550, rfc4566, rfc2833
@@ -242,7 +242,7 @@ if __name__ == '__main__': # parse command line options, and set the high level 
         options.listen = True
         
     if not options.listen and not options.to: 
-        print 'must supply --to option with the target SIP address'
+        print('must supply --to option with the target SIP address')
         sys.exit(-1)
     
     if options.ext_ip: setlocaladdr(options.ext_ip)
@@ -278,9 +278,9 @@ class Stacks(object):
         if not self._transport: raise ValueError('invalid transports, cannot start Stack')
 
     def stop(self):
-        for gen in self._gin.values(): gen.kill()
+        for gen in list(self._gin.values()): gen.kill()
         self._gin.clear()
-        for stack in self._stack.values():
+        for stack in list(self._stack.values()):
             if stack.sock is not None: stack.sock.close(); stack.sock = None
         self._stack.clear()
         
@@ -298,7 +298,7 @@ class Stacks(object):
                     self._conn[remote] = conn
                     logger.debug('received %r=>%r connection', remote, conn.getsockname())
                     gevent.spawn(self._siptcpreceiver, stack, conn, remote)
-            else: raise ValueError, 'invalid socket type'
+            else: raise ValueError('invalid socket type')
     
     def _siptcpreceiver(self, stack, sock, remote): # handle the messages on the given TCP connection.
         pending = ''
@@ -492,7 +492,7 @@ class Caller(object):
         if not self.options.listen:
             ua.sendResponse(ua.createResponse(501, 'Not Implemented'))
         else:
-            print '<<<', request.body
+            print('<<<', request.body)
             # logger.info('received: %s', request.body)
             if not [m for m in self._ua if isinstance(m, Message)]: # not found any message item
                 self._ua.append(Message(self, self.stacks.default, ua, request))
@@ -637,7 +637,7 @@ class Call(UA):
                 logger.debug('recognizing')
                 #try: print 'text=', r.recognize_sphinx(audio)
                 #except: pass
-                try: print r.recognize_google(audio)
+                try: print(r.recognize_google(audio))
                 except: pass
     
     def sendInvite(self):
@@ -851,7 +851,7 @@ class Call(UA):
                 gevent.sleep(0.2)
         elif self.options.textspeech and audiotts is not None:
             data = audiotts.convert(text)
-            packets = [data[i:i+320] for i in xrange(0, len(data), 320)]
+            packets = [data[i:i+320] for i in range(0, len(data), 320)]
             logger.debug('sending textspeech %r size=%d packets=%d', text, len(data), len(packets))
             self._outqueue.extend(packets)
             
@@ -877,12 +877,13 @@ if __name__ == '__main__':
             
         caller.wait()
     except KeyboardInterrupt:
-        print '' # to print a new line after ^C
+        print('') # to print a new line after ^C
     except: 
         logger.exception('exception')
         sys.exit(-1)
     try:
         caller.close()
     except KeyboardInterrupt:
-        print ''
+        print('')
+
 

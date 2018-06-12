@@ -5,12 +5,12 @@
 # http://opensource.adobe.com/wiki/download/attachments/1114283/amf3_spec_121207.pdf
 
 import struct, datetime, time, types
-from StringIO import StringIO
+from io import StringIO
 import xml.etree.ElementTree as ET
 
 class Object(object): # a typed object or received object. Typed object has _classname attr.
     def __init__(self, **kwargs):
-        for key, val in kwargs.items(): setattr(self, key, val)
+        for key, val in list(kwargs.items()): setattr(self, key, val)
     def __repr__(self):
         return repr(dict([(attr, getattr(self, attr)) for attr in dir(self) if not attr.startswith('__')]))
     
@@ -19,7 +19,7 @@ class Class:
     __slots__ = ('name', 'encoding', 'attrs')
 
 class _Undefined(object):
-    def __nonzero__(self): return False # always treated as False
+    def __bool__(self): return False # always treated as False
     def __repr__(self): return 'amf.undefined'
 
 undefined = _Undefined()  # received undefined is different from null (None)
@@ -42,10 +42,10 @@ class BytesIO(StringIO): # raise EOFError if needed, allow read with optional le
             return c
         
     for type, T, bytes in (('u8', 'B', 1), ('s8', 'b', 1), ('u16', 'H', 2), ('s16', 'h', 2), ('u32', 'L', 4), ('s32', 'l', 4), ('double', 'd', 8)):
-        exec '''def read_%s(self): return struct.unpack("!%s", self.read(%d))[0]'''%(type, T, bytes)
-        exec '''def write_%s(self, c): self.write(struct.pack("!%s", c))'''%(type, T)
+        exec('''def read_%s(self): return struct.unpack("!%s", self.read(%d))[0]'''%(type, T, bytes))
+        exec('''def write_%s(self, c): self.write(struct.pack("!%s", c))'''%(type, T))
         
-    def read_utf8(self, length): return unicode(self.read(length), 'utf8')
+    def read_utf8(self, length): return str(self.read(length), 'utf8')
     def write_utf8(self, c): self.write(c.encode('utf8'))
     
     def read_u29(self):
@@ -75,7 +75,7 @@ class BytesIO(StringIO): # raise EOFError if needed, allow read with optional le
 
 
 class AMF0(object):
-    NUMBER, BOOL, STRING, OBJECT, MOVIECLIP, NULL, UNDEFINED, REFERENCE, ECMA_ARRAY, OBJECT_END, ARRAY, DATE, LONG_STRING, UNSUPPORTED, RECORDSET, XML, TYPED_OBJECT, TYPE_AMF3 = range(0x12)
+    NUMBER, BOOL, STRING, OBJECT, MOVIECLIP, NULL, UNDEFINED, REFERENCE, ECMA_ARRAY, OBJECT_END, ARRAY, DATE, LONG_STRING, UNSUPPORTED, RECORDSET, XML, TYPED_OBJECT, TYPE_AMF3 = list(range(0x12))
 
     def __init__(self, data=None):
         self._obj_refs, self.data = list(), data if isinstance(data, BytesIO) else BytesIO(data) if data is not None else BytesIO()
@@ -108,12 +108,12 @@ class AMF0(object):
         if   data is None:                         self.data.write_u8(AMF0.NULL)
         elif data == undefined:                    self.data.write_u8(AMF0.UNDEFINED)
         elif isinstance(data, bool):               self.data.write_u8(AMF0.BOOL); self.data.write_u8(1 if data else 0)
-        elif isinstance(data, (int, long, float)): self.data.write_u8(AMF0.NUMBER); self.data.write_double(float(data))
-        elif isinstance(data, types.StringTypes):  self.writeString(data)
-        elif isinstance(data, (types.ListType, types.TupleType)): self.writeArray(data)
+        elif isinstance(data, (int, float)): self.data.write_u8(AMF0.NUMBER); self.data.write_double(float(data))
+        elif isinstance(data, (str,)):  self.writeString(data)
+        elif isinstance(data, (list, tuple)): self.writeArray(data)
         elif isinstance(data, (datetime.date, datetime.datetime)): self.writeDate(data)
         elif isinstance(data, ET._ElementInterface): self.writeXML(data)
-        elif isinstance(data, types.DictType):     self.writeEcmaArray(data)
+        elif isinstance(data, dict):     self.writeEcmaArray(data)
         elif isinstance(data, Object) and hasattr(data, '_classname'): self.writeTypedObject(data)
         elif isinstance(data, (Object, object)):   self.writeObject(data)
         else: raise ValueError('Invalid AMF0 data %r type %r' % (data, type(data)))
@@ -121,7 +121,7 @@ class AMF0(object):
     def readString(self): return self.data.read_utf8(self.data.read_u16())
     def readLongString(self): return self.data.read_utf8(self.data.read_u32())
     def writeString(self, data, writeType=True):
-        data = unicode(data).encode('utf8') if isinstance(data, unicode) else data
+        data = str(data).encode('utf8') if isinstance(data, str) else data
         if writeType: self.data.write_u8(AMF0.LONG_STRING if len(data) > 0xffff else AMF0.STRING)
         if len(data) > 0xffff: self.data.write_u32(len(data))
         else: self.data.write_u16(len(data))
@@ -136,7 +136,7 @@ class AMF0(object):
     def writeObject(self, data):
         if not self.writePossibleReference(data):
             self.data.write_u8(AMF0.OBJECT)
-            for key, val in data.__dict__.items(): 
+            for key, val in list(data.__dict__.items()): 
                 if not key.startswith('_'): self.writeString(key, False); self.write(val)
             self.writeString('', False); self.data.write_u8(AMF0.OBJECT_END)
 
@@ -157,12 +157,12 @@ class AMF0(object):
     def writeEcmaArray(self, data):
         if not self.writePossibleReference(data):
             self.data.write_u8(AMF0.ECMA_ARRAY); self.data.write_u32(len(data))
-            for key, val in data.items(): self.writeString(key, writeType=False); self.write(val)
+            for key, val in list(data.items()): self.writeString(key, writeType=False); self.write(val)
             self.writeString('', writeType=False); self.data.write_u8(AMF0.OBJECT_END)
          
     def readArray(self):
         count, obj = self.data.read_u32(), self._created([])
-        obj.extend(self.read() for i in xrange(count)) 
+        obj.extend(self.read() for i in range(count)) 
         return obj
     def writeArray(self, data):
         if not self.writePossibleReference(data):
@@ -193,13 +193,13 @@ class AMF0(object):
         if not self.writePossibleReference(data):
             self.data.write_u8(AMF0.TYPED_OBJECT)
             self.data.writeString(data._classname)
-            for key, val in data.__dict__.items(): 
+            for key, val in list(data.__dict__.items()): 
                 if not key.startswith('_'): self.writeString(key, False); self.write(val)
             self.writeString('', False); self.data.write_u8(AMF0.OBJECT_END)
 
     
 class AMF3(object):
-    UNDEFINED, NULL, BOOL_FALSE, BOOL_TRUE, INTEGER, NUMBER, STRING, XML, DATE, ARRAY, OBJECT, XMLSTRING, BYTEARRAY = range(0x0d)
+    UNDEFINED, NULL, BOOL_FALSE, BOOL_TRUE, INTEGER, NUMBER, STRING, XML, DATE, ARRAY, OBJECT, XMLSTRING, BYTEARRAY = list(range(0x0d))
     ANONYMOUS, TYPED, DYNAMIC, EXTERNALIZABLE = 0x01, 0x02, 0x04, 0x08
     
     def __init__(self, data=None):
@@ -229,12 +229,12 @@ class AMF3(object):
         if data is None:              self.data.write_u8(AMF3.NULL)
         elif data == undefined:       self.data.write_u8(AMF3.UNDEFINED)
         elif isinstance(data, bool):  self.data.write_u8(AMF3.BOOL_FALSE if data is False else AMF3.BOOL_TRUE)
-        elif isinstance(data, (int, long, float)): self.writeNumber(data)
-        elif isinstance(data, types.StringTypes): self.writeString(data)
+        elif isinstance(data, (int, float)): self.writeNumber(data)
+        elif isinstance(data, (str,)): self.writeString(data)
         elif isinstance(data, ET._ElementInterface): self.writeXML(data)
         elif isinstance(data, (datetime.date, datetime.datetime)): self.writeDate(data)
-        elif isinstance(data, (types.ListType, types.TupleType)): self.writeList(data)
-        elif isinstance(data, types.DictType): self.writeDict(data)
+        elif isinstance(data, (list, tuple)): self.writeList(data)
+        elif isinstance(data, dict): self.writeDict(data)
         elif isinstance(data, (types.InstanceType, Object)): self.writeObject(data)
         # no implicit way to invoke writeXMLString and writeByteArray
         else: raise ValueError('Invalid AMF3 data %r type %r'%(data, type(data)))
@@ -246,7 +246,7 @@ class AMF3(object):
     def readInteger(self, signed=True):
         self.data.read_u29() if not signed else self.data.read_s29()
     def writeNumber(self, data, writeType=True, type=None):
-        if type is None: type = AMF3.INTEGER if isinstance(data, (int, long)) and -0x10000000 <= data <= 0x0FFFFFFF else AMF3.NUMBER
+        if type is None: type = AMF3.INTEGER if isinstance(data, int) and -0x10000000 <= data <= 0x0FFFFFFF else AMF3.NUMBER
         if writeType: self.data.write_u8(type)
         if type == AMF3.INTEGER: self.data.write_s29(data)
         else: self.data.write_double(float(data))
@@ -258,7 +258,7 @@ class AMF3(object):
         if length == 0: return ''
         result = self.data.read(length)
         if decode:
-            try: result = unicode(result, 'utf8') # Try decoding as regular utf8 first. TODO: will it always raise exception?
+            try: result = str(result, 'utf8') # Try decoding as regular utf8 first. TODO: will it always raise exception?
             except UnicodeDecodeError: result = AMF3._decode_utf8_modified(result)
         if len(result) > 0: refs.append(result)
         return result
@@ -267,7 +267,7 @@ class AMF3(object):
         if refs is None: refs = self._str_refs
         if len(data) == 0: self.data.write_u8(0x01)
         elif not self._writePossibleReference(data, refs):
-            if encode and type(data) is unicode: data = unicode(data).encode('utf8')
+            if encode and type(data) is str: data = str(data).encode('utf8')
             self.data.write_u29((len(data) << 1) & 0x01)
             self.data.write(data)
         
@@ -279,18 +279,18 @@ class AMF3(object):
     # Ruby version is Copyright (c) 2006 Ross Bamford (rosco AT roscopeco DOT co DOT uk). The string is first converted to UTF16 BE
     @staticmethod
     def _decode_utf8_modified(data): # Modified UTF-8 data. See http://en.wikipedia.org/wiki/UTF-8#Java for details
-        utf16, i, b = [], 0, map(ord, data)
+        utf16, i, b = [], 0, list(map(ord, data))
         while i < len(b):
             c = b[i:i+1] if b[i] & 0x80 == 0 else b[i:i+2] if b[i] & 0xc0 == 0xc0 else b[i:i+3] if b[i] & 0xe0 == 0xe0 else b[i:i+4] if b[i] & 0xf8 == 0xf8 else []
             if len(c) == 0: raise ValueError('invalid modified utf-8')
             utf16.append(c[0] if len(c) == 1 else (((c[0] & 0x1f) << 6) | (c[1] & 0x3f)) if len(c) == 2 else (((c[0] & 0x0f) << 12) | ((c[1] & 0x3f) << 6) | (c[2] & 0x3f)) if len(c) == 3 else (((c[0] & 0x07) << 18) | ((c[1] & 0x3f) << 12) | ((c[2] & 0x3f) << 6) | (c[3] & 0x3f)) if len(c) == 4 else -1)
         for c in utf16: 
             if c > 0xffff: raise ValueError('does not implement more than 16 bit unicode')
-        return unicode(''.join([chr((c >> 8) & 0xff) + chr(c & 0xff) for c in utf16]), 'utf_16_be')
+        return str(''.join([chr((c >> 8) & 0xff) + chr(c & 0xff) for c in utf16]), 'utf_16_be')
     @staticmethod
     def _encode_utf8_modified(data):
-        ch = [ord(i) for i in unicode(data).encode('utf_16_be')]
-        utf16 = [(((ch[i] & 0xff) << 8) + (ch[i+1] & 0xff)) for i in xrange(0, len(ch), 2)]
+        ch = [ord(i) for i in str(data).encode('utf_16_be')]
+        utf16 = [(((ch[i] & 0xff) << 8) + (ch[i+1] & 0xff)) for i in range(0, len(ch), 2)]
         b = [(struct.pack('>B', c) if c <= 0x7f else struct.pack('>BB', 0xc0 | (c >> 6) & 0x1f, 0x80 | c & 0x3f) if c <= 0x7ff else struct.pack('>BBB', 0xe0 | (c >> 12) & 0xf, 0x80 | (c >> 6) & 0x3f, 0x80 | c & 0x3f) if c <= 0xffff else struct.pack('!B', 0xf0 | (c >> 18) & 0x7, 0x80 | (c >> 12) & 0x3f, 0x80 | (c >> 6) & 0x3f, 0x80 | c & 0x3f) if c <= 0x10ffff else None) for c in utf16]
         return ''.join(b)
         
@@ -315,11 +315,11 @@ class AMF3(object):
         if is_reference: return self._obj_refs[length]
         key = self.readString(refs=self._str_refs)
         if key == '': # return python list since only integer index
-            result = [self.read() for i in xrange(length)]
+            result = [self.read() for i in range(length)]
         else: # return python dict with key, value
             result = {}
             while key != '': result[key] = self.read(); key = self.readString(refs=self._str_refs)
-            for i in xrange(length): result[i] = self.read()
+            for i in range(length): result[i] = self.read()
         self._obj_refs.append(result)
         return result
     def writeList(self, data):
@@ -333,14 +333,14 @@ class AMF3(object):
         self.data.write_u8(AMF3.ARRAY)
         if not self._writePossibleReference(data, refs=self._obj_refs):
             if mixed:
-                keys, int_keys, str_keys = data.keys(), [], []
-                int_keys = sorted([x for x in keys if isinstance(x, (int, long))]) # assume max of 256 values
-                str_keys = [x for x in keys if isinstance(x, types.StringTypes)]
+                keys, int_keys, str_keys = list(data.keys()), [], []
+                int_keys = sorted([x for x in keys if isinstance(x, int)]) # assume max of 256 values
+                str_keys = [x for x in keys if isinstance(x, (str,))]
                 if len(int_keys) + len(str_keys) < len(keys): raise ValueError('non-int or str key found in dict')
                 if len(int_keys) <= 0 or int_keys[0] != 0 or int_keys[-1] != len(int_keys) - 1: # not dense
                     str_keys.extend(int_keys); int_keys[:] = []
             else:
-                int_keys, str_keys = [], data.keys()
+                int_keys, str_keys = [], list(data.keys())
             self.data.write_u29((len(int_keys) << 1) & 0x01)
             for key in str_keys: self.writeString(str(key), writeType=False); self.write(data[key])
             self.data.write_u8(0x01)
@@ -356,7 +356,7 @@ class AMF3(object):
         elif type & 0x03 == 0x01: # class information
             class_ = Class()
             class_.name = self.readString()
-            class_.attrs = [self.read() for i in xrange(type >> 3)]
+            class_.attrs = [self.read() for i in range(type >> 3)]
             if type & 0x04 != 0: class_.encoding |= AMF3.DYNAMIC
             if not class_.name: class_.encoding |= AMF3.ANONYMOUS
             if len(class_.attrs) > 0: class_.encoding |= AMF3.TYPED
@@ -385,7 +385,7 @@ class AMF3(object):
                     self._class_refs.append(class_)
                 for attr in class_.attrs: self.write(getattr(data, attr))
                 if class_.encoding & AMF3.DYNAMIC:
-                    for key, value in data.__dict__.items():
+                    for key, value in list(data.__dict__.items()):
                         if key not in class_.attrs:
                             self.writeString(key, writeType=False)
                             self.write(getattr(data, key))
@@ -393,7 +393,7 @@ class AMF3(object):
             else: # encode as anonymous and dynamic object.
                 self.data.write_u29(0x0b) # no typed attr, dynamic, class def
                 self.data.write_u8(0x01)  # anonymous
-                for key, value in data.__dict__.items():
+                for key, value in list(data.__dict__.items()):
                     self.writeString(key, writeType=False)
                     self.write(getattr(data, key)) 
                 self.data.write_u8(0x01) 
@@ -443,3 +443,4 @@ class AMF3(object):
 # LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 # WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+

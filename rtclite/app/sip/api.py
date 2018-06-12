@@ -9,7 +9,6 @@ See the server.py module as an example on how to implement a SIP proxy and regis
 '''
 
 import os, sys, socket, time, traceback, logging, re, base64, hashlib, struct
-from exceptions import Exception
 from ... import multitask
 from ...std.ietf.rfc2396 import Address, URI
 from ...std.ietf.rfc3261 import Message, Header, UserAgent, TransportInfo
@@ -23,10 +22,10 @@ logger = logging.getLogger('sip.api')
 
 class Event(object):
     '''Base class for all events that are handled by Dispatcher. The type property determines the event type.'''
-    def __init__(self, type, **kwargs): 
+    def __init__(self, type, **kwargs):
         self.type = type
-        for k,w in kwargs.iteritems(): self.__dict__[k] = w
-    
+        for k,w in kwargs.items(): self.__dict__[k] = w
+
 class MessageEvent(Event):
     '''A MessageEvent encapsulates a SIP message and provides container and attribute access for SIP headers.'''
     def __init__(self, type, msg, **kwargs):
@@ -46,8 +45,8 @@ class IncomingEvent(MessageEvent):
         self.action = self; self.location = []
     def accept(self, contacts=None):
         response = self.ua.createResponse(200, 'OK');
-        if contacts is not None: 
-            for h in map(lambda x: Header(str(x), 'Contact'), contacts): response.insert(h, append=True)
+        if contacts is not None:
+            for h in [Header(str(x), 'Contact') for x in contacts]: response.insert(h, append=True)
             response.Expires = self['Expires'] if self['Expires'] else Header('3600', 'Expires')
         self.ua.sendResponse(response)
     def reject(self, code, reason=None):
@@ -74,20 +73,20 @@ class IncomingEvent(MessageEvent):
     def default(self): # invoked when nothing else (action) was invoked in the application
         logger.debug('IncomingEvent default handler called')
         self.ua.sendResponse(501, 'Not Implemented')
-    
+
 class OutgoingEvent(MessageEvent):
     def __init__(self, type, msg, **kwargs):
         MessageEvent.__init__(self, type, msg, **kwargs)
-        
+
 class Dispatcher(object): # TODO: move this to kutil.py module
     '''A event dispatcher similar to ActionScript's EventDispatcher. Should be used very very carefully, because all references are
     strong references and must be explictly removed for cleanup.'''
     def __init__(self): self._handler = {}
     def __del__(self): self._handler.clear()
-    
+
     def attach(self, event, func):
         '''Attach an event name (str) to the event handler func which takes one argument (event).'''
-        if event in self._handler: 
+        if event in self._handler:
             if func not in self._handler[event]: self._handler[event].append(func)
         else: self._handler[event] = [func]
     def detach(self, event, func):
@@ -105,12 +104,12 @@ class Dispatcher(object): # TODO: move this to kutil.py module
                 count = count + 1
         if not count and hasattr(event, 'action') and hasattr(event.action, 'default') and callable(event.action.default):
             event.action.default() # invoke the default handler if no other handler was found.
-        
+
 class Agent(Dispatcher):
     '''This represents a listening endpoint that interfaces with the SIP stack and exposes various API methods on the endpoint.'''
     def __init__(self, listen=(('udp', '0.0.0.0', 5060), ('tcp', '0.0.0.0', 5060)), stack=Stack):
         '''Construct a new Agent. The sipaddr argument indicates the listening address for incoming SIP messages or connections, and
-        transports tuple contains list of supported transports such as 'udp' and 'tcp'. The caller may change the SIP stack from the 
+        transports tuple contains list of supported transports such as 'udp' and 'tcp'. The caller may change the SIP stack from the
         default one defined in rfc3261.py module.'''
         Dispatcher.__init__(self)
         logger.info('starting agent on ' + ', '.join(['%s:%d with transport %s'%(x[1], x[2], x[0]) for x in listen]))
@@ -124,30 +123,30 @@ class Agent(Dispatcher):
             t.type = transport
             self.stack[transport] = s = stack(self, t)
             s.sock = sock
-        combine_stacks(self.stack.values())
+        combine_stacks(list(self.stack.values()))
         self._gens = []
-    
+
     def __del__(self):
         '''Delete the object and internal member references.'''
-        try: 
-            for s in self.stack.values(): s.sock.close()
+        try:
+            for s in list(self.stack.values()): s.sock.close()
             del self.stack, self._gens
         except: pass
         Dispatcher.__del__(self)
-        
+
     def start(self):
         '''Start the listening tasks in this agent. It returns self for cascaded method calls.'''
-        for s in self.stack.values(): gen = self._sipreceiver(s); self._gens.append(gen); multitask.add(gen)
+        for s in list(self.stack.values()): gen = self._sipreceiver(s); self._gens.append(gen); multitask.add(gen)
         return self
-    
+
     def stop(self):
         '''Stop the listening tasks in this agent. It returns self for cascaded method calls.'''
         for gen in self._gens: gen.close();
         self._gens[:] = []
         return self
-    
+
     def _sipreceiver(self, stack, maxsize=16386):
-        '''Handle the messages or connections on the given SIP stack's socket, and pass it to the stack so that stack can invoke 
+        '''Handle the messages or connections on the given SIP stack's socket, and pass it to the stack so that stack can invoke
         appropriate callback on this object such as receivedRequest.'''
         sock = stack.sock
         while True:
@@ -155,7 +154,7 @@ class Agent(Dispatcher):
                 try: data, remote = yield multitask.recvfrom(sock, maxsize)
                 except socket.error: logger.exception('socket.recvfrom'); break
                 logger.debug('%r=>%r on type=%r\n%s', remote, sock.getsockname(), stack.transport.type, data)
-                if data: 
+                if data:
                     try: stack.received(data, remote)
                     except: logger.exception('received')
             elif sock.type == socket.SOCK_STREAM:
@@ -166,8 +165,8 @@ class Agent(Dispatcher):
                         multitask.add(self._wsreceiver(stack, conn, remote, maxsize))
                     else:
                         multitask.add(self._tcpreceiver(stack, conn, remote, maxsize))
-            else: raise ValueError, 'invalid socket type'
-    
+            else: raise ValueError('invalid socket type')
+
     def _tcpreceiver(self, stack, sock, remote, maxsize=16386): # handle the messages on the given TCP connection.
         self.conn[remote] = sock
         pending = ''
@@ -175,7 +174,7 @@ class Agent(Dispatcher):
             try: data = yield multitask.recv(sock, maxsize)
             except socket.error: logger.exception('socket.recv'); break
             logger.debug('%r=>%r on type=%r\n%s', remote, sock.getsockname(), stack.transport.type, data)
-            if data: 
+            if data:
                 pending += data
                 while True:
                     msg = pending
@@ -183,15 +182,15 @@ class Agent(Dispatcher):
                     if index2 > 0 and index1 > 0:
                         if index1 < index2:
                             index = index1 + 2
-                        else: 
+                        else:
                             index = index2 + 3
-                    elif index1 > 0: 
+                    elif index1 > 0:
                         index = index1 + 2
                     elif index2 > 0:
                         index = index2 + 3
                     else:
                         logger.debug('no CRLF found'); break # no header part yet
-                    
+
                     match = re.search(r'content-length\s*:\s*(\d+)\r?\n', msg.lower())
                     if not match: logger.debug('no content-length found'); break # no content length yet
                     length = int(match.group(1))
@@ -203,7 +202,7 @@ class Agent(Dispatcher):
                 break
         try: del self.conn[remote]
         except: pass
-            
+
     def _wsreceiver(self, stack, sock, remote, maxsize=16386): # handle the messages on the given TCP connection.
         handshake = False
         pending = ''
@@ -212,7 +211,7 @@ class Agent(Dispatcher):
             try: data = yield multitask.recv(sock, maxsize)
             except socket.error: logger.exception('socket.recv'); break
             logger.debug('%r=>%r on type=%r length %d', sock.getpeername(), sock.getsockname(), stack.transport.type, len(data))
-            if data: 
+            if data:
                 pending += data
                 if not handshake:
                     # do handshake first
@@ -227,14 +226,14 @@ class Agent(Dispatcher):
                         def verify_handshake(userdata, path, headers):
                             if headers.get('Sec-WebSocket-Protocol', None) != 'sip':
                                 raise HTTPError('400 Bad Request', 'missing or unsupported Sec-WebSocket-Protocol, must be sip')
-                            data = dict(headers.items())
+                            data = dict(list(headers.items()))
                             data.update(method='GET', path=path, protocol='HTTP/1.1')
                             userdata.websocket = data # store the handshake parameters
                             return ['Sec-WebSocket-Protocol: sip']
-                        
+
                         response, pending, path = receive_handshake(pending, verify_handshake=verify_handshake, userdata=stack)
                         if response is None: break # wait for more
-                        
+
                         logger.debug('%r=>%r\n%s', sock.getsockname(), sock.getpeername(), response)
                         sock.sendall(response)
                         if path:
@@ -251,7 +250,7 @@ class Agent(Dispatcher):
                             sock.sendall(value)
                         elif typ == 'onmessage':
                             logger.debug('websocket received\n%s', value)
-                            if isinstance(value, unicode): value = value.encode('utf-8')
+                            if isinstance(value, str): value = value.encode('utf-8')
                             try: stack.received(value, remote)
                             except: logger.exception('receiving')
                         if state is None:
@@ -263,7 +262,7 @@ class Agent(Dispatcher):
                 break
         try: del self.conn[remote]
         except: pass
-            
+
     # following callbacks are invoked by the SIP stack
     def send(self, data, remote, stack):
         '''Send a given data to remote for the SIP stack.'''
@@ -280,32 +279,32 @@ class Agent(Dispatcher):
                 else: # for UDP send using the stack's UDP socket.
                     yield multitask.sendto(stack.sock, data, remote)
             except StopIteration: pass
-            except: 
+            except:
                 logger.exception('sending')
         multitask.add(_send(self, data, remote, stack))
-        
-    def createServer(self, request, uri, stack): 
+
+    def createServer(self, request, uri, stack):
         '''Create a Proxy UAS for all requests except CANCEL.'''
         return (request.method != 'CANCEL') and Proxy(stack, request) or None
-    
+
     def sending(self, ua, message, stack):
         if message.method:
             logger.debug('sending request on stack %r', message.method)
             self.dispatch(OutgoingEvent(type='outgoing', msg=message, ua=ua, stack=stack, agent=self))
 
-    def receivedRequest(self, ua, request, stack): 
+    def receivedRequest(self, ua, request, stack):
         logger.debug('received request from stack %r', request.method)
         self.dispatch(IncomingEvent(type='incoming', msg=request, ua=ua, stack=stack, agent=self))
-    
+
     def receivedResponse(self, ua, response, stack): pass
     def cancelled(self, ua, request, stack): pass
     def dialogCreated(self, dialog, ua, stack): pass
     def authenticate(self, ua, header, stack): return True
     def createTimer(self, app, stack): return Timer(app)
-    
 
-# Methods and classes inspired by SER (SIP Express Router) to support server functions 
-        
+
+# Methods and classes inspired by SER (SIP Express Router) to support server functions
+
 class Subscriber(dict):
     '''A simple subscriber table using in-memory dict. The application can store subscribers in this, and use this to authenticate
     incoming SIP request. '''
@@ -316,13 +315,13 @@ class Subscriber(dict):
         self[uri] = [realm, password]
     def authenticate(self, request, realm='localhost'):
         '''Returns 200 on success, 401 on failure, 0 if missing or invalid nonce, and 404 if no password/user information available.'''
-        auths = filter(lambda x: x['realm']==realm, request.all('Authorization', 'Proxy-Authorization')) # search all our authenticate headers
+        auths = [x for x in request.all('Authorization', 'Proxy-Authorization') if x['realm']==realm] # search all our authenticate headers
         if not auths: return 0 # missing authenticate header
         # TODO: check for valid nonce. for now just assume all nonce to be valid.
         uri = request.From.value.uri
         if uri not in self: return 404
         return 200
-        
+
 class Location(dict):
     '''A simple location service using in-memory dict. Subclass may override this to support databases such as MySQL.'''
     def __init__(self):
@@ -345,17 +344,17 @@ class Location(dict):
                 e = now + (expires if 'expires' not in c else int(c.expires)) # expiration for this contact.
                 t = None # a NATed target to be used in locate
                 if c['+sip.instance'] and c['reg-id']:
-                    existing[:] = filter(lambda x: x[0]['+sip.instance']!=c['+sip.instance'] or x[0]['reg-id']!=c['reg-id'], existing) # remove matching contacts
+                    existing[:] = [x for x in existing if x[0]['+sip.instance']!=c['+sip.instance'] or x[0]['reg-id']!=c['reg-id']] # remove matching contacts
                     instanceId = c['+sip.instance']
-                    if instanceId[0] == '<' and instanceId[-1] == '>': instanceId = instanceId[1:-1] 
+                    if instanceId[0] == '<' and instanceId[-1] == '>': instanceId = instanceId[1:-1]
                     c['pub-gruu'] = '%s;gr=%s'%(msg.To.value.uri, instanceId)
                     # TODO: need to send back temp-gruu also
                     t = msg.first('Via').viaUri.dup()
                     t.user = c.value.uri.user
                 else:
-                    existing[:] = filter(lambda x: x[0].value.uri!=c.value.uri, existing)  # remove matching contacts
+                    existing[:] = [x for x in existing if x[0].value.uri!=c.value.uri]  # remove matching contacts
                 existing.insert(0, (c, e, t)) # insert the new contact in the beginning
-            existing[:] = filter(lambda x: x[1]>now, existing) # filter out expired contacts
+            existing[:] = [x for x in existing if x[1]>now] # filter out expired contacts
             if not existing: # no more contacts
                 del self[uri] # remove from the table as well
         logger.debug('save %r', self)
@@ -365,13 +364,13 @@ class Location(dict):
         logger.debug('locate %r in\n%r', uri, self)
         existing = self.get(str(uri), [])
         now = time.time()
-        existing[:] = filter(lambda x: x[1]>now, existing) # remove expired headers
-        for c in existing: 
+        existing[:] = [x for x in existing if x[1]>now] # remove expired headers
+        for c in existing:
             c[0]['expires'] = str(int(c[1]-now)) # update the expires header with relative seconds
             if c[2]: c[0].value.uri = c[2]
-        return map(lambda x: x[0], existing) # return the contact headers
+        return [x[0] for x in existing] # return the contact headers
 
-# Global methods available to the controller script 
+# Global methods available to the controller script
 
 def run():
     '''The run loop which runs the multitask's main loop. This can be terminated by KeyboardInterrupt.'''
@@ -379,7 +378,7 @@ def run():
     except KeyboardInterrupt: pass
 
 
-# Unit testing    
+# Unit testing
 if __name__ == '__main__':
     import doctest
     doctest.testmod()

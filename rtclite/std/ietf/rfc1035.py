@@ -200,13 +200,13 @@ class _debug:
     def __init__(self, name):
         self._name = name
         if _EnableDebug:
-            print "%s.py: %s <<" % (__name__, self._name)
+            print("%s.py: %s <<" % (__name__, self._name))
     def msg(self, message):
         if _EnableDebug:
-            print "%s.py: %s: %s" % (__name__, self._name, message)
+            print("%s.py: %s: %s" % (__name__, self._name, message))
     def __del__(self):
         if _EnableDebug:
-            print "%s.py: %s >>" % (__name__, self._name)
+            print("%s.py: %s >>" % (__name__, self._name))
 
 
 class QueryError(Exception):
@@ -272,11 +272,11 @@ class _dnsquery:
     def __sanity(self, query, sections):
         dbg = _debug('_dnsquery::__sanity')
         addr, qtype, qclass = query
-        if not isinstance(addr, types.StringTypes):
+        if not isinstance(addr, (str,)):
             raise ValueError('Invalid name %s' % str(addr))
-        if qtype == 0 or not DNS_TYPE.has_key(qtype):
+        if qtype == 0 or qtype not in DNS_TYPE:
             raise ValueError('Invalid type %u' % qtype)
-        if qclass == 0 or not DNS_CLASS.has_key(qclass):
+        if qclass == 0 or qclass not in DNS_CLASS:
             raise ValueError('Invalid class %u' % qclass)
         self._query = query
 
@@ -285,10 +285,10 @@ class _dnsquery:
 
         sections = self.__normalize(sections)
         for k in ['AUTHORITY', 'ADDITIONAL']:
-            if sections.has_key(k):
+            if k in sections:
                 v = sections[k]
-                if not (isinstance(v, types.ListType) or \
-                        isinstance(v, types.TupleType)):
+                if not (isinstance(v, list) or \
+                        isinstance(v, tuple)):
                     raise ValueError('%s format error' % k)
                 self._sections[k] = v
 
@@ -299,7 +299,7 @@ class _dnsquery:
         dbg = _debug('_dnsquery::__normalize')
         res = {}
         for key in the_map:
-            if isinstance(key, types.StringTypes):
+            if isinstance(key, (str,)):
                 res[key.upper()] = the_map[key]
         return res
 
@@ -390,10 +390,10 @@ class _dnsquery:
             rdata += self.__mkqname(name)
         rdata += self.__pack32(data['SERIAL'])
         for key in ['REFRESH', 'RETRY', 'EXPIRE', 'MINIMUM']:
-            if data.has_key(key):
+            if key in data:
                 rdata += self.__pack32(data[key])
             else:
-                rdata += self.__pack32(0L)
+                rdata += self.__pack32(0)
         return rdata
             
 
@@ -409,7 +409,7 @@ class _dnsquery:
     def __mkqsection(self, sname):
         dbg = _debug('_dnsquery::__mkqsection')
 
-        if not self._sections.has_key(sname):
+        if sname not in self._sections:
             return ''
 
         sqry = ''
@@ -418,8 +418,8 @@ class _dnsquery:
             qtype = section['TYPE']
             qclass = section['CLASS']
 
-            qttl = 0L
-            if section.has_key('TTL'):
+            qttl = 0
+            if 'TTL' in section:
                 qttl = section['TTL']
 
             if qtype == T_PTR:
@@ -1137,7 +1137,7 @@ class _dnsanswer:
         elif atype == T_PX:
             return self.__PX_RDATA(data, offset, length)
 
-        print 'WARNING: Unsupported TYPE %u' % atype
+        print('WARNING: Unsupported TYPE %u' % atype)
         return self.__UNKNOWN_RDATA(data, offset, length)
 
     #
@@ -1243,7 +1243,7 @@ class _dnsanswer:
         errcode = self._dict['HEADER']['OPCODES']['RCODE']
         errstr = 'Unknown Error %u' % errcode
         if errcode:
-            if HDR_RCODE.has_key(errcode):
+            if errcode in HDR_RCODE:
                 errstr = HDR_RCODE[errcode][0]
         else:
             errstr = 'No Error'
@@ -1261,14 +1261,14 @@ class _dnsserver:
         hoststruct = host.split(':', 2)
         structlen = len(hoststruct)
         if structlen == 2:
-            if _PROTOCOLS.has_key(hoststruct[0].lower()):
+            if hoststruct[0].lower() in _PROTOCOLS:
                 self._serverproto = hoststruct[0].lower()
                 self._servername = hoststruct[1]
             else:
                 self._servername = hoststruct[0]
                 self._serverport = int(hoststruct[1])
         elif structlen == 3:
-            if not _PROTOCOLS.has_key(hoststruct[0].lower()):
+            if hoststruct[0].lower() not in _PROTOCOLS:
                 raise KeyError('Invalid connection protocol name: %s' % proto)
             self._serverproto = hoststruct[0].lower()
             self._servername = hoststruct[1]
@@ -1280,7 +1280,7 @@ class _dnsserver:
         # Caller wants us to use this proto
         #
         if not proto is None:
-            if _PROTOCOLS.has_key(proto):
+            if proto in _PROTOCOLS:
                 self._serverproto = proto
             else:
                 raise KeyError('Invalid connection protocol name: %s' % proto)
@@ -1807,3 +1807,4 @@ class Resolver:
 #
 
 # vim:ts=4:sw=4:et:nowrap
+

@@ -2,10 +2,10 @@
 
 ![rtclite](https://raw.githubusercontent.com/theintencity/rtclite/master/assets/logo-rtclite.png)
 
-This project aims to create an open source repository of light weight implementations 
+This project aims to create an open source repository of light weight implementations
 of real-time communication (RTC) protocols and applications.
-In a nutshell, it contains reference implementations, 
-prototypes and sample applications, mostly written in Python, of various RTC standards defined in 
+In a nutshell, it contains reference implementations,
+prototypes and sample applications, mostly written in Python 3, of various RTC standards defined in 
 the IETF, W3C and elsewhere, e.g., RFC 3261 (SIP), RFC 3550 (RTP), RFC 3920 (XMPP), RTMP, etc.
 
 
@@ -43,12 +43,12 @@ This project contains source code of various RTC specifications.
 The source code is annotated with text snippets from
 the relevant specification to show (a) how the code fragment implements
 the specification, (b) which part of the specification is relevant to the
-code fragment, and vice-versa, and (c) the implicit code documentation 
+code fragment, and vice-versa, and (c) the implicit code documentation
 borrowed from the text in the specification.
 
 [Click to browse the annotated source code](http://kundansingh.com/p/rtclite/index.html).
 
-Alternatively, click on individual modules below to view that annotated code and its Python source lines of code (SLoC). The SLoC also shows the concise nature of this Python implementation of various protocols and applications. 
+Alternatively, click on individual modules below to view that annotated code and its Python source lines of code (SLoC). The SLoC also shows the concise nature of this Python implementation of various protocols and applications.
 
 | Module | Package or Description | SLoC |
 | :------ | :------ | -----: |
@@ -167,7 +167,7 @@ The `std`, `app` and `vnd` packages under top-level `rtclite` include the implem
 of the protocols and the applications. The `std` package further includes sub-packages
 for standard bodies, e.g., `ietf` and `w3c`. The `app` package contains not only the
 applications but also supporting library modules classified under high level
-categories such as `net`, `sip` or `sec`, and the `vnd` package contains vendor specific 
+categories such as `net`, `sip` or `sec`, and the `vnd` package contains vendor specific
 protocol implementations such as `adobe` sub-package for `rtmp` and `siprtmp`.
 
 In an application, a module from this project should always be imported with the
@@ -195,9 +195,9 @@ make doc
 ```
 ## License and contributions
 
-Please see [LICENSE](/LICENSE) for details on software license and copyright. 
-In particular, this software is available as either LGPL or alternative license. 
+Please see [LICENSE](/LICENSE) for details on software license and copyright.
+In particular, this software is available as either LGPL or alternative license.
 Any other contributors, who submit code or patches to this project
-automatically transfer the copyright of their work to the original author. 
-This allows the original author to create derivative work or issue alternative 
+automatically transfer the copyright of their work to the original author.
+This allows the original author to create derivative work or issue alternative
 license outside of LGPL.
