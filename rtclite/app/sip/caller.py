@@ -471,6 +471,8 @@ class Caller(object):
         if self.options.register:
             self._ua.append(Register(self, self.stacks.default))
         if self.options.to:
+            if self.options.register:
+                gevent.sleep(2.0) # so that register succeeds or fails
             if self.options.send:
                 self._ua.append(Message(self, self.stacks.default))
             else:
