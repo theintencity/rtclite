@@ -123,11 +123,13 @@ or send it to another machine to open. Now you should be in a two-party video ca
         }
         
         function do_local() {
-            navigator.webkitGetUserMedia({audio: true, video: true}, function(stream) {
+            navigator.mediaDevices.getUserMedia({audio: true, video: true})
+            .then(function(stream) {
                 local_stream = stream;
-                $("#local").src = webkitURL.createObjectURL(stream);
+                $("#local").srcObject = stream;
                 do_connect();
-            }, function(error) {
+            })
+            .catch(function(error) {
                 console.log("failed to get user media");
                 console.log(error);
             });
@@ -149,15 +151,20 @@ or send it to another machine to open. Now you should be in a two-party video ca
         
         function do_peerconnection2(data) {
             console.log('creating peer connection for mode=' + mode)
-            peerconnection = new webkitRTCPeerConnection(data.configuration);
+            peerconnection = new RTCPeerConnection(data.configuration);
             
             peerconnection.onicecandidate = onicecandidate;
-            peerconnection.onaddstream = onaddstream;
-            peerconnection.onremovestream = onremovestream;
+            peerconnection.ontrack = onaddtrack;
+            peerconnection.onremovetrack = onremovetrack;
             
             if (mode == "caller") {
                 console.log("addStream " + local_stream);
                 peerconnection.addStream(local_stream);
+                // var tracks = local_stream.getTracks();
+                // for (var i=0; i<tracks.length; ++i) {
+                //     console.log("addTrack " + i + " " + tracks[i]);
+                //     peerconnection.addTrack(tracks[i]);
+                // }
                 onnegotiationneeded(null);
             }
             else if (pending.length > 0) {
@@ -183,32 +190,55 @@ or send it to another machine to open. Now you should be in a two-party video ca
 
         
         function onrecvoffer(data) {
-            peerconnection.setRemoteDescription(new RTCSessionDescription(data));
-            peerconnection.addStream(local_stream);
-            peerconnection.createAnswer(function(answer) {
-                peerconnection.setLocalDescription(answer);
-                send(JSON.stringify({method: "NOTIFY", data: answer}));
-            }, function(error) {
-                console.log("failed to createAnswer");
+            peerconnection.setRemoteDescription(new RTCSessionDescription(data))
+            .then(function() {
+                peerconnection.addStream(local_stream);
+                // var tracks = local_stream.getTracks();
+                // for (var i=0; i<tracks.length; ++i) {
+                //     console.log("addTrack " + i + " " + tracks[i]);
+                //     peerconnection.addTrack(tracks[i]);
+                // }
+            })
+            .then(function() {
+                return peerconnection.createAnswer();
+            })
+            .then(function(answer) {
+                return peerconnection.setLocalDescription(answer);
+            })
+            .then(function() {
+                send(JSON.stringify({method: "NOTIFY", data: peerconnection.localDescription}));
+            })
+            .catch(function(error) {
+                console.log("failed to createAnswer: " + error);
             });
         }
         
         function onrecvanswer(data) {
-            peerconnection.setRemoteDescription(new RTCSessionDescription(data));
+            peerconnection.setRemoteDescription(new RTCSessionDescription(data))
+            .catch(function(error) {
+                console.log("failed to setRemoteDescription: " + error);
+            });
         }
         
         function onrecvcandidate(data) {
             if (data) {
-                peerconnection.addIceCandidate(new RTCIceCandidate(data));
+                peerconnection.addIceCandidate(new RTCIceCandidate(data))
+                .catch(function(error) {
+                    console.log("failed to addIceCandidate: " + error);
+                });
             }
         }
         
         function onnegotiationneeded(event) {
             console.log("onnegotiationneeded")
-            peerconnection.createOffer(function(offer) {
-                peerconnection.setLocalDescription(offer);
-                send(JSON.stringify({method: "NOTIFY", data: offer}));
-            }, function(error) {
+            peerconnection.createOffer()
+            .then(function(offer) {
+                return peerconnection.setLocalDescription(offer);
+            })
+            .then(function() {
+                send(JSON.stringify({method: "NOTIFY", data: peerconnection.localDescription}));
+            })
+            .catch(function(error) {
                 console.log("failed to createOffer");
             });
         }
@@ -218,14 +248,21 @@ or send it to another machine to open. Now you should be in a two-party video ca
             send(JSON.stringify({method: "NOTIFY", data: event.candidate}));
         }
         
-        function onaddstream(event) {
-            console.log("onaddstream");
-            $("#remote").src = webkitURL.createObjectURL(event.stream);
+        function onaddtrack(event) {
+            console.log(event);
+            console.log("onaddtrack: " + event.streams[0]);
+            if ($("#remote").srcObject != event.streams[0]) {
+                $("#remote").srcObject = event.streams[0];
+            }
         }
         
-        function onremovestream(event) {
-            console.log("onremovestream");
-            $("#remote").src = "";
+        function onremovetrack(event) {
+            console.log("onremovetrack");
+            var stream = $("#remote").srcObject;
+            var tracks = stream.getTracks();
+            if (tracks.length == 0) {
+                $("#remote").srcObject = null;
+            }
         }
         
         function initialize() {

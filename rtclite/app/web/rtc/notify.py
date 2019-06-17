@@ -32,14 +32,15 @@ client knows which request this response corresponds to.
 
 First, use the getUserMedia function to get the user's camera and microphone stream,
 
-  navigator.getUserMedia({audio: true, video: true}, function(stream) {
+  navigator.mediaDevices.getUserMedia({audio: true, video: true})
+  .then(function(stream) {
     local_stream = stream;
-    video1.src = webkitURL.createObjectURL(stream);
+    video1.srcObject = stream;
     pc.onaddstream = function(stream) {
-      video2.src = webkitURL.createObjectURL(stream);
+      video2.srcObject = stream;
     }
     ...
-  }
+  })
 
 On the caller side, use some random id, say 2310, and connect, whereas on the callee side
 use the same id of the caller, and connect.
@@ -56,7 +57,7 @@ RTCPeerConnection object as needed.
   ws.onmessage = function(event) {
     var message = JSON.parse(event.data);
     if (message.code == "success" and message.msg_id == 1) {
-        pc = new webkitRTCPeerConnection(message.result.configuration);
+        pc = new RTCPeerConnection(message.result.configuration);
         ...
     }
     ...
@@ -65,7 +66,8 @@ RTCPeerConnection object as needed.
 Use the methods in RTCPeerConnection to add the local stream, and create offer session,
 and send it to the other client over the WebSocket.
   pc.addStream(local_stream);
-  pc.createOffer(function(offer) {
+  pc.createOffer()
+  .then(function(offer) {
     pc.setLocalDescription(offer);
     ws.send(JSON.stringify({method: "NOTIFY", data: offer}));
     ...
@@ -101,7 +103,8 @@ RTCPeerConnection object, create an answer and then send it to the other client.
       ...
       pc.setRemoteDescription(new RTCSessionDescription(message.data));
       ...
-      pc.createAnswer(function(answer) {
+      pc.createAnswer()
+      .then(function(answer) {
         pc.setLocalDescription(answer);
         ws.send(JSON.stringify({method: "NOTIFY", data: answer}));
       });
