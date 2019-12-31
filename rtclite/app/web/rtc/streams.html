@@ -1,0 +1,277 @@
+<!DOCTYPE HTML>
+<!--
+(c) 2019, Kundan Singh. All Rights Reserved.
+
+The web page displays a video element, and uses WebRTC to show a user interface
+of a publish-subscribe model, from one publisher to multiple subscribers.
+It uses WebSocket connection to streams.py to configured named streams and to 
+exchange signaling data.
+
+To test this, first install rtclite and start the websocket server, in the top
+level directory, as follows.
+
+$ python -m rtclite.app.web.rtc.streams -l tcp:0.0.0.0:8080 -d
+
+Then put this file under a web server, such as python's SimpleHTTPServer as follows:
+
+$ python -m SimpleHTTPServer 8000
+
+Then pick a unique stream name, e.g., streams/1234. Open a WebRTC capable
+browser such as Google Chrome and visit:
+
+http://localhost:8000/rtclite/app/web/rtc/streams.html?publish=streams/1234
+
+Open one or more instances or tabs of the browser, and visit:
+
+http://localhost:8000/rtclite/app/web/rtc/streams.html?subscribe=streams/1234
+
+This will enable live media stream flow from publisher to all the subscribers.
+Try the experiment again by launching the publisher and subscribers in different 
+order, e.g., one subscriber first, then publisher, then another subscriber.
+
+To test the access control enabled interface, use the publisher URL as
+http://localhost:8000/rtclite/app/web/rtc/streams.html?publish=sha1%2Fstream%2F1234
+
+and subscriber URL as 
+http://localhost:8000/rtclite/app/web/rtc/streams.html?subscribe=sha1%2F3a3e02ea6695cd608ac9f84980e60ce702e9c715
+
+where the stream path starts with sha1, and the subscriber path contains the sha1 hash of 
+publisher path sha1("/stream/1234")
+
+Due to autoplay restrictions, you may need to click on the play button on
+the subscriber side before the video can be played.
+-->
+<html>
+<head>
+    <title>webrtc named stream test</title>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type" />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="author" content="Kundan Singh"/>
+
+    <script type="text/javascript" src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    
+<style type="text/css">
+    body { 
+        margin: 0; padding: 0; position: absolute; width: 100%; height: 100%; 
+    }
+    video { 
+        position: absolute; width: 100%; height: 100%; 
+        background: black; object-fit: cover; 
+    }
+    a { 
+        position: absolute; top: 10px; right: 10px; 
+        color: lightblue; background: rgba(0,0,0,0.3); padding: 1ch; text-decoration: none; 
+    }
+    body:not(:hover) a { 
+        display: none !important; 
+    }
+</style>
+</head>
+<body>
+    <video id="video" controls autoplay></video>
+    <a id="url" style="display: none;"></a>
+        
+    <script type="text/javascript">
+        let path = "", mode = "", myid = null, params = "";
+        let ws = null, local_stream = null;
+        let pc = {}; // multiple if publisher, one if subscriber.
+        
+        if (typeof console == "undefined" || typeof console.log == "undefined") {
+            console = { log: function(msg) { alert(msg); } };
+        }
+        
+        window.onload = function() {
+            initialize();
+        };
+        
+        function initialize() {
+            let url = window.location.href
+            if (window.location.search) {
+                let parts = window.location.search.substr(1).split("&");
+                let first = parts.shift().split("=");
+                params = parts.join("&");
+                if (first.length > 1) {
+                    mode = first.shift();
+                    path = decodeURIComponent(first.join("="));
+                }
+            }
+            if (!path) {
+                mode = "publish";
+                path = "streams/" + ("" + Math.random()).substr(2, 6);
+                url += "?" + mode + "=" + encodeURIComponent(path);
+                if (window.history) {
+                    window.history.pushState("with url", "webrtc named stream test", url);
+                }
+            }
+
+            if (mode == "publish") {
+                $("#url").href = url.replace(/\?publish=/, "?subscribe=");
+                $("#url").setAttribute("target", "_blank");
+                $("#url").innerHTML = "open subscriber";
+                $("#url").style.display = "block";
+            }
+
+            if (mode == "publish") {
+                do_local(function() {
+                    do_connect();
+                });
+            } else {
+                do_connect();
+            }
+        }
+        
+        function $(selector) {
+            return document.querySelector(selector);
+        }
+        
+        function do_connect() {
+            let ws_url = "ws://localhost:8080/" + path + "?mode=" + mode + (params ? "&" + params : "");
+            console.log("connecting to " + ws_url);
+            ws = new WebSocket(ws_url);
+            ws.onopen = onopen;
+            ws.onclose = onclose;
+            ws.onmessage = onmessage;
+        }
+        
+        function onopen() {
+            console.log("onopen");
+        }
+        
+        function onclose() {
+            console.log("onclose");
+        }
+        
+        function onmessage(event) {
+            console.log("< " + (event.data || '').substr(0, 200));
+            let request = JSON.parse(event.data);
+            if (request.method == "EVENT") {
+                if (request.data.type == "created") {
+                    // this is the first event
+                    myid = request.data.id;
+                } else if (mode == "publish" && request.data.type == "subscribed") {
+                    // new subscriber found
+                    do_peerconnection(request.data.id);
+                } else if (mode == "publish" && request.data.type == "unsubscribed") {
+                    // existing subscriber left
+                    do_close(request.data.id);
+                } else if (mode == "subscribe" && request.data.type == "published") {
+                    // publisher found
+                    do_peerconnection(request.data.id);
+                } else if (mode == "subscribe" && request.data.type == "unpublished") {
+                    // publisher left
+                    do_close(request.data.id);
+                }
+            } else if (request.method == "NOTIFY") {
+                let p = pc[request.from];
+                if (p) {
+                    var data = request.data;
+                    if (data.candidate) {
+                        console.log("applying icecandidate");
+                        p.addIceCandidate(data && new RTCIceCandidate(data))
+                            .catch(function(error) {
+                                console.warn("failed to receive candidate: " + error);
+                            });
+                    } else if (data.type == "offer") {
+                        console.log("applying offer");
+                        p.setRemoteDescription(new RTCSessionDescription(data))
+                            .then(function() {
+                                return p.createAnswer();
+                            })
+                            .then(function(answer) {
+                                return p.setLocalDescription(answer);
+                            })
+                            .then(function() {
+                                send(JSON.stringify({method: "NOTIFY", to: request.from, data: p.localDescription}));
+                            })
+                            .catch(function(error) {
+                                console.warn("failed to receive offer: " + error);
+                            });
+                    } else if (data.type == "answer") {
+                        console.log("applying answer");
+                        p.setRemoteDescription(new RTCSessionDescription(data))
+                            .catch(function(error) {
+                                console.warn("failed to receive answer: " + error);
+                            });
+                    }
+                }
+            }
+        }
+        
+        function send(message) {
+            console.log("> " + message);
+            ws.send(message);
+        }
+        
+        function do_local(callback) {
+            navigator.mediaDevices.getUserMedia({audio: true, video: true})
+                .then(function(stream) {
+                    local_stream = stream;
+                    $("#video").muted = true;
+                    $("#video").srcObject = stream;
+                    callback(true);
+                })
+                .catch(function(error) {
+                    console.log("failed to get user media");
+                    console.log(error);
+                    callback(false);
+                });
+        }
+        
+
+        function do_peerconnection(index) {
+            console.log('creating peer connection for mode=' + mode)
+            let p = new RTCPeerConnection();
+            pc[index] = p;
+            
+            p.onicecandidate = function(event) {
+                console.log("onicecandidate");
+                if (event.candidate) {
+                    send(JSON.stringify({method: "NOTIFY", to: index, data: event.candidate}));
+                }
+            };
+
+            if (mode == "subscribe") {
+                p.ontrack = function(event) {
+                    console.log("ontrack");
+                    if ($("#video").srcObject != event.streams[0]) {
+                        $("#video").srcObject = event.streams[0];
+                    }
+                };
+                p.onremovetrack = function(event) {
+                    console.log("ontrack");
+                    var stream = $("#video").srcObject;
+                    var tracks = stream.getTracks();
+                    if (tracks.length == 0) {
+                        $("#video").srcObject = null;
+                    }
+                };
+            } else if (local_stream) {
+                p.addStream(local_stream);
+                onnegotiationneeded(index, p);
+            }
+        }
+        
+        function onnegotiationneeded(index, p) {
+            console.log("onnegotiationneeded")
+            p.createOffer()
+                .then(function(offer) {
+                    return p.setLocalDescription(offer);
+                })
+                .then(function() {
+                    send(JSON.stringify({method: "NOTIFY", to: index, data: p.localDescription}));
+                })
+                .catch(function(error) {
+                    console.log("failed to createOffer");
+                });
+        }
+
+        function do_close(index) {
+            let p = pc[index];
+            delete pc[index];
+            if (p) {
+                p.close();
+            }
+        }
+    </script>
+</body>
+</html>

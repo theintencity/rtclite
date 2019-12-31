@@ -68,8 +68,10 @@ and send it to the other client over the WebSocket.
   pc.addStream(local_stream);
   pc.createOffer()
   .then(function(offer) {
-    pc.setLocalDescription(offer);
-    ws.send(JSON.stringify({method: "NOTIFY", data: offer}));
+    return pc.setLocalDescription(offer);
+  })
+  .then(function() {
+    ws.send(JSON.stringify({method: "NOTIFY", data: pc.localDescription}));
     ...
   });
 
@@ -105,8 +107,10 @@ RTCPeerConnection object, create an answer and then send it to the other client.
       ...
       pc.createAnswer()
       .then(function(answer) {
-        pc.setLocalDescription(answer);
-        ws.send(JSON.stringify({method: "NOTIFY", data: answer}));
+        return pc.setLocalDescription(answer);
+      })
+      .then(function() {
+        ws.send(JSON.stringify({method: "NOTIFY", data: pc.localDescription}));
       });
     }
   }
