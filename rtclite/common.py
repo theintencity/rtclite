@@ -319,7 +319,14 @@ def getlocaladdr(sock=None):
     # TODO: use a better mechanism to get the address such as getifaddr
     addr = sock and sock.getsockname() or ('0.0.0.0', 0)
     if addr and addr[0] == '0.0.0.0': 
-        addr = (_local_ip if _local_ip else socket.gethostbyname(socket.gethostname()), addr[1])
+        if _local_ip:
+           addr = (_local_ip, addr[1])
+        else:
+           try: name = socket.gethostbyname(socket.gethostname())
+           except: 
+               try: name = socket.gethostbyname(socket.gethostname() + ".local")
+               except: name = '127.0.0.1'
+           addr = (name, addr[1])
     return addr
 
 def setlocaladdr(ip):

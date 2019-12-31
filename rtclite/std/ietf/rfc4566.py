@@ -48,8 +48,10 @@ class SDP(attrs):
                 self.version   = int(self.version)
             else:
                 hostname = socket.gethostname()
-                self.username, self.sessionid, self.version, self.nettype, self.addrtype, self.address = \
-                '-', int(time.time()), int(time.time()), 'IN', 'IP4', (hostname.find('.')>0 and hostname or socket.gethostbyname(hostname))
+                self.username, self.sessionid, self.version, self.nettype, self.addrtype = \
+                '-', int(time.time()), int(time.time()), 'IN', 'IP4'
+                try: self.address = (hostname.find('.')>0 and hostname or socket.gethostbyname(hostname + ".local"))
+                except: self.address = '127.0.0.1'
         def __repr__(self):
             return ' '.join(map(lambda x: str(x), [self.username, self.sessionid, self.version, self.nettype, self.addrtype, self.address]))
         
