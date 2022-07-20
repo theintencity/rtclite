@@ -245,7 +245,15 @@ class Message(object):
         # 8. Content-Length if present must match the length of body.
         # 9. mandatory headers are To, From, Call-ID and CSeq.
         # 10. syntax for top Via header and fields: ttl, maddr, received, branch.
+        value = value.decode()
+        print("=====================MOJE======================")
+        print(value)
+        print("=====================#MOJE=====================")
         indexCRLFCRLF, indexLFLF = value.find('\r\n\r\n'), value.find('\n\n')
+        # print("=====================MOJE======================")
+        # print(indexCRLFCRLF)
+        # print(indexLFLF)
+        # print("=====================#MOJE=====================")
         firstheaders = body = ''
         if indexCRLFCRLF >= 0 and indexLFLF >= 0:
             if indexCRLFCRLF < indexLFLF: indexLFLF = -1
@@ -276,6 +284,9 @@ class Message(object):
         for h in hlist:
             try:
                 name, values = Header.createHeaders(h)
+                print("=====================MOJE======================")
+                print(name, values)
+                print("=====================#MOJE=====================")
                 if name not in self: # doesn't already exist
                     self[name] = values if len(values) > 1 else values[0]
                 elif name not in Message._single: # valid multiple-instance header
