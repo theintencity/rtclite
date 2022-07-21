@@ -361,7 +361,7 @@ class Stacks(object):
         if stack.sock:
             try:
                 if self.options.use_lf: data = re.sub(r'\r\n', '\n', data)
-                if stack.transport.type == Stacks.UDP: stack.sock.sendto(data, addr)
+                if stack.transport.type == Stacks.UDP: stack.sock.sendto(data.encode('utf-8'), addr)
                 elif addr in self._conn: self._conn[addr].sendall(data)
                 elif self.allow_outbound:
                     conn = self._conn[addr] = socket.socket(type=socket.SOCK_STREAM)

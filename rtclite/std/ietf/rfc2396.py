@@ -5,6 +5,7 @@ Various forms of addresses such as URI and SIP address.
 '''
 
 import re, socket, struct
+from functools import total_ordering
 
 def isIPv4(data):
     '''Check if the data is a dotted decimal IPv4 address or not?
@@ -54,7 +55,8 @@ def isPrivate(data):
         return a == 10 or a == 172 and 16 <= b < 32 or a == 192 and b == 168
     except:
         return False
-    
+
+@total_ordering
 class URI(object):
     '''A URI object with dynamic properties.
     Attributes and items such as scheme, user, password, host, port, 
@@ -124,10 +126,15 @@ class URI(object):
     def __hash__(self):
         '''Hash is derived from lower-case string, hence causes case insensitive match'''
         return hash(str(self).lower())
-    
-    def __cmp__(self, other):
-        '''Compare two URI objects by comparing their hash values'''
-        return cmp(str(self).lower(), str(other).lower())
+
+    def __eq__(self, other):
+        return str(self).lower() == str(other).lower()
+
+    def __ne__(self, other):
+        return str(self).lower() != str(other).lower()
+
+    def __lt__(self, other):
+        return str(self).lower() < str(other).lower()
 
     @property
     def hostPort(self):
