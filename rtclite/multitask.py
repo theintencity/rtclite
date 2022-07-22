@@ -411,6 +411,7 @@ class FDAction(FDReady):
         self.func = func
         self.args = args
         self.kwargs = kwargs
+        self.args = [arg.encode('utf-8') if isinstance(arg, str) else arg for arg in self.args]
 
     def _eval(self):
         return self.func(*(self.args), **(self.kwargs))

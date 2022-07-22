@@ -132,7 +132,7 @@ class Header(object):
                     yield (n, v)
         except:
             logger.exception('error parsing parameters')
-        raise StopIteration(None)
+        return
 
 
     def __str__(self):
@@ -245,6 +245,7 @@ class Message(object):
         # 8. Content-Length if present must match the length of body.
         # 9. mandatory headers are To, From, Call-ID and CSeq.
         # 10. syntax for top Via header and fields: ttl, maddr, received, branch.
+        value = value.decode() if not isinstance(value, str) else value
         indexCRLFCRLF, indexLFLF = value.find('\r\n\r\n'), value.find('\n\n')
         firstheaders = body = ''
         if indexCRLFCRLF >= 0 and indexLFLF >= 0:
@@ -309,11 +310,7 @@ class Message(object):
         '''Return iterator to iterate over all Header objects.'''
         h = list()
         for n in [x for x in self.__dict__ if not x.startswith('_') and x not in Message._keywords]:
-            if isinstance(x, Header):
-                arr = [self[n]]
-            elif isinstance(self[n],list):
-                arr = self[n]
-            h += [x for x in arr]
+            h += list(filter(lambda x: isinstance(x, Header), self[n] if isinstance(self[n], list) else [self[n]]))
         return iter(h)
 
     def first(self, name):
@@ -326,11 +323,7 @@ class Message(object):
         args = [x.lower() for x in args]
         h = list()
         for n in [x for x in self.__dict__ if x in args and not x.startswith('_') and x not in Message._keywords]:
-            if isinstance(x, Header):
-                arr = [self[n]]
-            elif isinstance(self[n],list):
-                arr = self[n]
-            h += [x for x in arr]
+            h += list(filter(lambda x: isinstance(x, Header), self[n] if isinstance(self[n], list) else [self[n]]))
         return h
 
     def insert(self, header, append=False):
@@ -725,13 +718,13 @@ class Transaction(object):
         or using [To, From, Call-ID, CSeq-number(int)] and server (Boolean).'''
         To, From, CallId, CSeq = (request.To.value, request.From.value, request['Call-ID'].value, request.CSeq.number) if isinstance(request, Message) else (request[0], request[1], request[2], request[3])
         data = str(To).lower() + '|' + str(From).lower() + '|' + str(CallId) + '|' + str(CSeq) + '|' + str(server)
-        return 'z9hG4bK' + str(urlsafe_b64encode(md5(data).digest())).replace('=','.')
+        return 'z9hG4bK' + str(urlsafe_b64encode(md5(data.encode('utf-8')).digest())).replace('=','.')
 
     @staticmethod
     def createProxyBranch(request, server):
         '''Create branch property from the request, which will get proxied in a new client branch.'''
         via = request.first('Via')
-        if via and 'branch' in via: return 'z9hG4bK'+ str(urlsafe_b64encode(md5(via.branch).digest())).replace('=','.')
+        if via and 'branch' in via: return 'z9hG4bK'+ str(urlsafe_b64encode(md5(via.branch.encode('utf-8')).digest())).replace('=','.')
         else: return Transaction.createBranch(request, server)
 
     @staticmethod
